@@ -10,12 +10,10 @@ import (
 )
 
 var (
-	// 锁自动释放时间
-	maxTimeout = strconv.Itoa(int(time.Second * 60))
+	// 锁自动释放时间(秒)
+	maxTimeout = "60"
 	// 重试间隔
 	retryTime = 10 * time.Millisecond
-	// 初始时间
-	initUnixNano = time.Now().UnixNano()
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
@@ -31,7 +29,7 @@ func NewMutex(ctx context.Context, key string) *mutex {
 	return &mutex{
 		ctx:       ctx,
 		key:       key,
-		id:        strconv.Itoa(int(initUnixNano + rd.Int63())),
+		id:        strconv.FormatInt(rd.Int63(), 10),
 		retryTime: retryTime,
 	}
 }
@@ -47,7 +45,7 @@ const lockScript = `
 if redis.call("GET", KEYS[1]) == ARGV[1] then
 	return "OK"
 else
-	return redis.call("SET", KEYS[1], ARGV[1], "NX", "PX", ARGV[2])
+	return redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
 end`
 
 func (m *mutex) Lock() error {
