@@ -19,24 +19,25 @@ var (
 )
 
 type mutex struct {
-	ctx       context.Context
-	key       string
-	id        string
-	retryTime time.Duration
+	ctx context.Context
+	key string
+	id  string
 }
 
-func NewMutex(ctx context.Context, key string) *mutex {
+func NewMutex(key string) *mutex {
 	return &mutex{
-		ctx:       ctx,
-		key:       key,
-		id:        strconv.FormatInt(rd.Int63(), 10),
-		retryTime: retryTime,
+		ctx: context.Background(),
+		key: key,
+		id:  strconv.FormatInt(rd.Int63(), 10),
 	}
 }
 
-func (m *mutex) WithRetryTime(d time.Duration) *mutex {
-	m.retryTime = d
-	return m
+func (m *mutex) WithContext(ctx context.Context) *mutex {
+	return &mutex{
+		ctx: ctx,
+		key: m.key,
+		id:  m.id,
+	}
 }
 
 // 先判断是否为当前线程重复获取锁，如果是则返回OK。 (可重入锁)
@@ -48,20 +49,29 @@ else
 	return redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
 end`
 
-func (m *mutex) Lock() error {
+func (m *mutex) TryLock() bool {
 	keys := []string{m.key}
+	resp, err := rdb.Eval(m.ctx, lockScript, keys, m.id, maxTimeout).Result()
+	if err != nil && err != redis.Nil {
+		return false
+	}
+
+	reply, ok := resp.(string)
+	return ok && reply == "OK"
+}
+
+func (m *mutex) Lock() {
 	for {
-		resp, err := rdb.Eval(m.ctx, lockScript, keys, m.id, maxTimeout).Result()
-		if err != nil && err != redis.Nil {
-			return err
+		if m.TryLock() {
+			return
 		}
 
-		reply, ok := resp.(string)
-		if ok && reply == "OK" {
-			return nil
+		select {
+		case <-m.ctx.Done():
+			return
+		default:
+			time.Sleep(retryTime)
 		}
-
-		time.Sleep(m.retryTime)
 	}
 }
 

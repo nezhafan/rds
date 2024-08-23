@@ -11,14 +11,19 @@ func NewBitmap(key string) bitmap {
 	return bitmap{base{key}}
 }
 
-// 设置，val值为0或1。
-func (b bitmap) SetBit(offset uint32, val int) error {
-	return rdb.SetBit(ctx, b.key, int64(offset), val).Err()
+// 设置
+func (b bitmap) SetBit(offset uint32, ok bool) error {
+	var v int
+	if ok {
+		v = 1
+	}
+	return rdb.SetBit(ctx, b.key, int64(offset), v).Err()
 }
 
 // 获取
-func (b bitmap) GetBit(offset uint32) int64 {
-	return rdb.GetBit(ctx, b.key, int64(offset)).Val()
+func (b bitmap) GetBit(offset uint32) bool {
+	v := rdb.GetBit(ctx, b.key, int64(offset)).Val()
+	return v == 1
 }
 
 // 获取范围内1的个数，带BIT参数为>7.0版本支持。

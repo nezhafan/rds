@@ -10,9 +10,8 @@ import (
 // 文档 https://redis.uptrace.dev/zh/guide/
 
 var (
-	rdb      *redis.Client
-	ctx      = context.Background()
-	longtime = time.Hour * 24 * 30
+	rdb *redis.Client
+	ctx = context.Background()
 )
 
 const (
@@ -20,12 +19,13 @@ const (
 	Nil = redis.Nil
 )
 
-func Connect(addr string, auth string) error {
+func Connect(addr string, auth string, db int) error {
 	rdb = redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: auth,
-		DB:       0,
+		DB:       db,
 	})
+
 	return rdb.Ping(ctx).Err()
 }
 
