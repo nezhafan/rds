@@ -1,4 +1,4 @@
-package redis
+package rdb
 
 type hyperloglog struct {
 	base

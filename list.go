@@ -1,4 +1,4 @@
-package redis
+package rdb
 
 type list struct {
 	base

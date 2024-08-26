@@ -1,8 +1,7 @@
-package redis
+package rdb
 
 import (
 	"fmt"
-	"math"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -63,41 +62,46 @@ func BenchmarkString(b *testing.B) {
 }
 
 func TestBitmap(t *testing.T) {
-	bitmap1 := NewBitmap("test-bitmap1")
-	// defer bitmap1.Del()
+	bf1 := NewBitmap("test-bitmap1")
+	defer bf1.Del()
+	bf1.SetBit(10000, true)
+	bf1.SetBit(2, true)
+	fmt.Println(bf1.GetBit(10000) == true)
+	fmt.Println(bf1.BitCount(0, -1) == 2)
+	fmt.Println(bf1.BitPos(true, 0, -1) == 2)
+	fmt.Println(bf1.BitPos(false, 0, -1) == 0)
 
-	// err := bitmap1.SetBit(0, true)
-	// if err != nil {
-	// 	t.Fatal(err)
-	// }
-	// if !bitmap1.GetBit(0) {
-	// 	t.Fatal("wrong")
-	// }
-	err := bitmap1.SetBit(math.MaxUint32, true)
-	if err != nil {
-		fmt.Println("===err==", err)
-	}
-	fmt.Println(math.MaxUint32)
-	fmt.Println("===", bitmap1.GetBit(10086))
+	bf2 := NewBitmap("test-bitmap2")
+	defer bf2.Del()
+	bf2.SetBit(1, true)
+	bfmerge := NewBitmap("test-bitmap-merge")
+	defer bfmerge.Del()
+	bfmerge.BitOP("OR", bf1.key, bf2.key)
+	fmt.Println(bfmerge.BitCount(0, -1) == 3)
+	bfmerge.BitOP("AND", bf1.key, bf2.key)
+	fmt.Println(bfmerge.BitCount(0, -1) == 0)
 
-	// // 假设n个用户都在第一天和当年最后一天签到，闰年。
-	// bitmap2 := NewBitmap("test-bitmap2")
-	// defer bitmap2.Del()
+	bitfield := NewBitField("test-bitfield")
 
-	// const year = 366
-	// ids := [...]uint32{1, 2, 67890}
+	defer bitfield.Del()
+	bitfield.Set("i8", 0, 17)
+	bitfield.Set("i8", 9, 32)
+	bitfield.IncrBy("i8", 9, 1)
 
-	// for _, id := range ids {
-	// 	// 第一天
-	// 	bitmap2.SetBit(id*year+1, true)
-	// 	// 最后一天
-	// 	bitmap2.SetBit(id*year+366, true)
-	// 	// 统计
-	// 	n := bitmap2.BitCount(id*year+1, id*year+366)
-	// 	fmt.Println(fmt.Sprintf("用户%d登录天数:", id), n)
-	// }
+	n, err := bitfield.Get("i8", 0)
+	fmt.Println(n, err)
+	n, err = bitfield.Get("i8", 9)
+	fmt.Println(n, err)
 
-	// fmt.Println("总计数：", bitmap2.BitCount(0, math.MaxUint32))
+	bitautofield := NewAutoBitField("test-bitautofield", 32, 12, 2)
+	defer bitautofield.Del()
+	a, err := bitautofield.AutoSet(1700000000, 4004, 1)
+	fmt.Println(a, err)
+	a, err = bitautofield.AutoGet()
+	fmt.Println(a, err)
+	a, err = bitautofield.AutoIncrBy(0, 1, 0)
+	fmt.Println(a, err)
+
 }
 
 func TestHash(t *testing.T) {
