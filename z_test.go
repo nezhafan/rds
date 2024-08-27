@@ -76,9 +76,9 @@ func TestBitmap(t *testing.T) {
 	bf2.SetBit(1, 1)
 	bfmerge := NewBitmap("test-bitmap-merge")
 	defer bfmerge.Del()
-	bfmerge.BitOP("OR", bf1.key, bf2.key)
+	bfmerge.BitOp("OR", bf1.key, bf2.key)
 	fmt.Println(bfmerge.BitCount(0, -1) == 3)
-	bfmerge.BitOP("AND", bf1.key, bf2.key)
+	bfmerge.BitOp("AND", bf1.key, bf2.key)
 	fmt.Println(bfmerge.BitCount(0, -1) == 0)
 
 	bitfield := NewBitField("test-bitfield")
