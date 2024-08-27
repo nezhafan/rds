@@ -50,7 +50,7 @@ func (b *bitmap) BitPos(search int, start, end int64) int64 {
 // 合并别的bitmap
 // op: AND OR XOR NOT
 // 如果是临时统计，请给key加上过期时间
-func (b *bitmap) BitOP(op string, srcKeys ...any) {
+func (b *bitmap) BitOp(op string, srcKeys ...any) {
 	commands := make([]any, 0, len(srcKeys)+3)
 	commands = append(commands, "BITOP", op, b.key)
 	commands = append(commands, srcKeys...)
