@@ -9,6 +9,7 @@ type bitmap struct {
 }
 
 // 位操作，适用于表达二元情况
+// 例如用户ID作为offset标识是否登录
 // 占用内存，由offset最大值决定。 (offset/8/1024/1024) MB
 // https://redis.io/docs/latest/commands/setbit/
 func NewBitmap(key string) bitmap {
@@ -60,8 +61,8 @@ type bitfield struct {
 	base
 }
 
-// bitfield是对bitmap的分段切割
-// 用一个bitmap表示多个作用
+// bitfield是对bitmap的分段切割，如果用不好，使用NewAutoBitField
+// 用一个bitmap表示多个作用，bitmap如果是对多用户区分二元，bitfield更像对单用户记录多个数字类型字段。
 // https://redis.io/docs/latest/commands/bitfield/
 func NewBitField(key string) bitfield {
 	return bitfield{
@@ -98,11 +99,11 @@ type autobitfield struct {
 	bits []uint8
 }
 
-// 对bitfield的自动切割
+// 对bitfield的自动切割，也是bit位操作
+// 例如使用 32，32 记录 登录IP、登录时间戳。
 // bit位的大小不必为8的倍数（但是实际内存会对齐，剩余部分可以预留）
 // 在考虑数字最大值的情况下节约，如果设置的值超过范围，会保持在最大值，不会溢出。
 // 自动处理都是无符号类型，如果需要存负数，要么使用bitfield，要么用1位表示正负，代码再判断拼接。
-// 如果存IP、时间戳使用32位，如果存用户ID使用24位就能存1600万
 func NewAutoBitField(key string, bits ...uint8) autobitfield {
 	if len(bits) == 0 {
 		panic("至少需要一个参数")
