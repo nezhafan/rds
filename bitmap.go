@@ -1,53 +1,55 @@
 package rdb
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type bitmap struct {
 	base
 }
 
+// 位操作，适用于表达二元情况
+// 占用内存，由offset最大值决定。 (offset/8/1024/1024) MB
 // https://redis.io/docs/latest/commands/setbit/
 func NewBitmap(key string) bitmap {
-	return bitmap{base{key}}
+	return bitmap{base: newBase(key)}
 }
 
-// 设置
-func (b bitmap) SetBit(offset uint32, ok bool) error {
-	var v int
-	if ok {
+// 设置0或1
+func (b *bitmap) SetBit(offset uint32, v int) error {
+	if v > 1 {
 		v = 1
 	}
 	return rdb.SetBit(ctx, b.key, int64(offset), v).Err()
 }
 
 // 获取
-func (b bitmap) GetBit(offset uint32) bool {
+func (b *bitmap) GetBit(offset uint32) bool {
 	v := rdb.GetBit(ctx, b.key, int64(offset)).Val()
 	return v == 1
 }
 
 // 获取范围内1的个数
-func (b bitmap) BitCount(start, end int) int {
+func (b *bitmap) BitCount(start, end int64) int64 {
 	args := []any{"BITCOUNT", b.key, start, end, "BIT"}
-	i, _ := rdb.Do(ctx, args...).Int()
+	i, _ := rdb.Do(ctx, args...).Int64()
 	return i
 }
 
 // 返回第一个0或1的位置
-func (b bitmap) BitPos(search bool, start, end int) int {
-	var n int
-	if search {
-		n = 1
+func (b *bitmap) BitPos(search int, start, end int64) int64 {
+	if search > 1 {
+		search = 1
 	}
-	args := []any{"BITPOS", b.key, n, start, end, "BIT"}
-	i, _ := rdb.Do(ctx, args...).Int()
+	args := []any{"BITPOS", b.key, search, start, end, "BIT"}
+	i, _ := rdb.Do(ctx, args...).Int64()
 	return i
 }
 
 // 合并别的bitmap
 // op: AND OR XOR NOT
 // 如果是临时统计，请给key加上过期时间
-func (b bitmap) BitOP(op string, srcKeys ...any) {
+func (b *bitmap) BitOP(op string, srcKeys ...any) {
 	commands := make([]any, 0, len(srcKeys)+3)
 	commands = append(commands, "BITOP", op, b.key)
 	commands = append(commands, srcKeys...)
@@ -58,14 +60,16 @@ type bitfield struct {
 	base
 }
 
+// bitfield是对bitmap的分段切割
+// 用一个bitmap表示多个作用
 // https://redis.io/docs/latest/commands/bitfield/
 func NewBitField(key string) bitfield {
 	return bitfield{
-		base: base{key},
+		base: newBase(key),
 	}
 }
 
-func (b bitfield) Set(typ string, offset uint32, value uint32) (uint32, error) {
+func (b *bitfield) Set(typ string, offset uint32, value uint32) (uint32, error) {
 	slice, err := rdb.Do(ctx, "BITFIELD", b.key, "OVERFLOW", "SAT", "SET", typ, offset, value).Slice()
 	if err != nil {
 		return 0, err
@@ -73,7 +77,7 @@ func (b bitfield) Set(typ string, offset uint32, value uint32) (uint32, error) {
 	return uint32(slice[0].(int64)), nil
 }
 
-func (b bitfield) IncrBy(typ string, offset uint32, value uint32) (uint32, error) {
+func (b *bitfield) IncrBy(typ string, offset uint32, value uint32) (uint32, error) {
 	slice, err := rdb.Do(ctx, "BITFIELD", b.key, "OVERFLOW", "SAT", "INCRBY", typ, offset, value).Slice()
 	if err != nil {
 		return 0, err
@@ -81,7 +85,7 @@ func (b bitfield) IncrBy(typ string, offset uint32, value uint32) (uint32, error
 	return uint32(slice[0].(int64)), nil
 }
 
-func (b bitfield) Get(typ string, offset uint32) (uint32, error) {
+func (b *bitfield) Get(typ string, offset uint32) (uint32, error) {
 	slice, err := rdb.Do(ctx, "BITFIELD_RO", b.key, "GET", typ, offset).Slice()
 	if err != nil {
 		return 0, err
@@ -94,7 +98,10 @@ type autobitfield struct {
 	bits []uint8
 }
 
-// bit位可以是1-32位
+// 对bitfield的自动切割
+// bit位的大小不必为8的倍数（但是实际内存会对齐，剩余部分可以预留）
+// 在考虑数字最大值的情况下节约，如果设置的值超过范围，会保持在最大值，不会溢出。
+// 自动处理都是无符号类型，如果需要存负数，要么使用bitfield，要么用1位表示正负，代码再判断拼接。
 // 如果存IP、时间戳使用32位，如果存用户ID使用24位就能存1600万
 func NewAutoBitField(key string, bits ...uint8) autobitfield {
 	if len(bits) == 0 {
@@ -109,13 +116,13 @@ func NewAutoBitField(key string, bits ...uint8) autobitfield {
 		}
 	}
 	return autobitfield{
-		base: base{key},
+		base: newBase(key),
 		bits: bits,
 	}
 }
 
 // 返回原值。不会溢出。
-func (b autobitfield) AutoSet(values ...uint32) ([]uint32, error) {
+func (b *autobitfield) AutoSet(values ...uint32) ([]uint32, error) {
 	if len(values) != len(b.bits) {
 		panic("参数值数量必须与New时一一对应")
 	}
@@ -131,7 +138,7 @@ func (b autobitfield) AutoSet(values ...uint32) ([]uint32, error) {
 }
 
 // 返回增长后的值。不会溢出。
-func (b autobitfield) AutoIncrBy(values ...uint32) ([]uint32, error) {
+func (b *autobitfield) AutoIncrBy(values ...uint32) ([]uint32, error) {
 	if len(values) != len(b.bits) {
 		panic("参数值数量必须与New时一一对应")
 	}
@@ -146,7 +153,7 @@ func (b autobitfield) AutoIncrBy(values ...uint32) ([]uint32, error) {
 	return b.autodo(commands)
 }
 
-func (b autobitfield) AutoGet() ([]uint32, error) {
+func (b *autobitfield) AutoGet() ([]uint32, error) {
 	commands := make([]any, 0, len(b.bits)*3+2)
 	commands = append(commands, "BITFIELD_RO", b.key)
 	var offset int
@@ -158,7 +165,7 @@ func (b autobitfield) AutoGet() ([]uint32, error) {
 	return b.autodo(commands)
 }
 
-func (b autobitfield) autodo(commands []any) ([]uint32, error) {
+func (b *autobitfield) autodo(commands []any) ([]uint32, error) {
 	slice, err := rdb.Do(ctx, commands...).Int64Slice()
 	if err != nil {
 		return nil, err

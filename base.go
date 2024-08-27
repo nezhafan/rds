@@ -29,37 +29,35 @@ func Connect(addr string, auth string, db int) error {
 	return rdb.Ping(ctx).Err()
 }
 
-func Get() *redis.Client {
-	return rdb
-}
+// func Get() *redis.Client {
+// 	return rdb
+// }
 
 func Do(args ...any) (any, error) {
 	return rdb.Do(ctx, args...).Result()
-}
-
-// 最后需要pipe.Exec()执行
-func Pipeline() redis.Pipeliner {
-	pipe := rdb.Pipeline()
-	return pipe
 }
 
 type base struct {
 	key string
 }
 
-func (b base) Expire(exp time.Duration) (bool, error) {
+func newBase(key string) base {
+	return base{key: key}
+}
+
+func (b *base) Expire(exp time.Duration) (bool, error) {
 	return rdb.Expire(ctx, b.key, exp).Result()
 }
 
-func (b base) Exists() (bool, error) {
+func (b *base) Exists() (bool, error) {
 	i, err := rdb.Exists(ctx, b.key).Result()
 	return i == 1, err
 }
 
-func (b base) Del() bool {
+func (b *base) Del() bool {
 	return rdb.Del(ctx, b.key).Val() == 1
 }
 
-func (b base) TTL() time.Duration {
+func (b *base) TTL() time.Duration {
 	return rdb.TTL(ctx, b.key).Val()
 }

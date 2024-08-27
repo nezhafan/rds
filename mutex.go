@@ -2,6 +2,7 @@ package rdb
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -12,8 +13,6 @@ import (
 var (
 	// 锁自动释放时间(秒)
 	maxTimeout = "60"
-	// 重试间隔
-	retryTime = 10 * time.Millisecond
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
@@ -28,7 +27,7 @@ func NewMutex(key string) *mutex {
 	return &mutex{
 		ctx: context.Background(),
 		key: key,
-		id:  strconv.FormatInt(rd.Int63(), 10),
+		id:  strconv.Itoa(rd.Int()),
 	}
 }
 
@@ -60,16 +59,17 @@ func (m *mutex) TryLock() bool {
 	return ok && reply == "OK"
 }
 
-func (m *mutex) Lock() {
+func (m *mutex) Lock() bool {
 	for {
 		if m.TryLock() {
-			return
+			return true
 		}
-
 		select {
 		case <-m.ctx.Done():
-			return
+			return false
 		default:
+			retryTime := time.Duration(rd.Intn(30)+10) * time.Millisecond
+			fmt.Println("重试", retryTime)
 			time.Sleep(retryTime)
 		}
 	}

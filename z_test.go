@@ -64,16 +64,16 @@ func BenchmarkString(b *testing.B) {
 func TestBitmap(t *testing.T) {
 	bf1 := NewBitmap("test-bitmap1")
 	defer bf1.Del()
-	bf1.SetBit(10000, true)
-	bf1.SetBit(2, true)
+	bf1.SetBit(10000, 1)
+	bf1.SetBit(2, 1)
 	fmt.Println(bf1.GetBit(10000) == true)
 	fmt.Println(bf1.BitCount(0, -1) == 2)
-	fmt.Println(bf1.BitPos(true, 0, -1) == 2)
-	fmt.Println(bf1.BitPos(false, 0, -1) == 0)
+	fmt.Println(bf1.BitPos(1, 0, -1) == 2)
+	fmt.Println(bf1.BitPos(0, 0, -1) == 0)
 
 	bf2 := NewBitmap("test-bitmap2")
 	defer bf2.Del()
-	bf2.SetBit(1, true)
+	bf2.SetBit(1, 1)
 	bfmerge := NewBitmap("test-bitmap-merge")
 	defer bfmerge.Del()
 	bfmerge.BitOP("OR", bf1.key, bf2.key)
@@ -366,6 +366,5 @@ func BenchmarkMutex(b *testing.B) {
 	}
 
 	wg.Wait()
-	fmt.Println("每个goroutine重试间隔2ms，睡眠2ms")
 	fmt.Println("尝试次数", b.N, "耗时", time.Since(start).Milliseconds(), "ms")
 }
