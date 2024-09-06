@@ -1,4 +1,4 @@
-module github.com/tomatocuke/redis
+module github.com/tomatocuke/rds
 
 go 1.18.0
 
