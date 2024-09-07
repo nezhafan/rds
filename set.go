@@ -1,4 +1,4 @@
-package rdb
+package rds
 
 type set struct {
 	base
