@@ -16,9 +16,10 @@ func NewBitmap(key string) bitmap {
 	return bitmap{base: newBase(key)}
 }
 
-// 设置0或1
-func (b *bitmap) SetBit(offset uint32, v int) error {
-	if v > 1 {
+// 不支持设置负数，最大 uint32，占用512M内存
+func (b *bitmap) SetBit(offset uint32, ok bool) error {
+	var v int
+	if ok {
 		v = 1
 	}
 	return rdb.SetBit(ctx, b.key, int64(offset), v).Err()

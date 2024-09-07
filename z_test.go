@@ -64,8 +64,8 @@ func BenchmarkString(b *testing.B) {
 func TestBitmap(t *testing.T) {
 	bf1 := NewBitmap("test-bitmap1")
 	defer bf1.Del()
-	bf1.SetBit(10000, 1)
-	bf1.SetBit(2, 1)
+	bf1.SetBit(10000, true)
+	bf1.SetBit(2, true)
 	fmt.Println(bf1.GetBit(10000) == true)
 	fmt.Println(bf1.BitCount(0, -1) == 2)
 	fmt.Println(bf1.BitPos(1, 0, -1) == 2)
@@ -73,7 +73,7 @@ func TestBitmap(t *testing.T) {
 
 	bf2 := NewBitmap("test-bitmap2")
 	defer bf2.Del()
-	bf2.SetBit(1, 1)
+	bf2.SetBit(1, true)
 	bfmerge := NewBitmap("test-bitmap-merge")
 	defer bfmerge.Del()
 	bfmerge.BitOp("OR", bf1.key, bf2.key)
