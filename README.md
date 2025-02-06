@@ -10,7 +10,7 @@
 
 
 ### 使用
-- `go get "github.com/tomatocuke/redis"`
+- `go install github.com/nezhafan/rds@latest`
 - 具体的使用方法查看 `z_test.go`
 
 ```go

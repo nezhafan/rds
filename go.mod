@@ -1,4 +1,4 @@
-module github.com/tomatocuke/rds
+module github.com/nezhafan/rds
 
 go 1.18.0
 
