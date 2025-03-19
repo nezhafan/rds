@@ -10,7 +10,7 @@
 
 
 ### 使用
-- `go install github.com/nezhafan/rds@latest`
+- 项目目录下 `go get github.com/nezhafan/rds`
 - 具体的使用方法查看 `z_test.go`
 
 ```go
