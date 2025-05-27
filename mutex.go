@@ -2,40 +2,36 @@ package rds
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
+type Locker interface {
+	TryLock() bool
+	Lock()
+	UnLock()
+}
+
 var (
+	_ Locker = (*Mutex)(nil)
 	// 锁自动释放时间(秒)
-	maxTimeout = "60"
+	mutexTimeout = "60"
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
-type mutex struct {
+type Mutex struct {
 	ctx context.Context
 	key string
 	id  string
 }
 
-func NewMutex(key string) *mutex {
-	return &mutex{
-		ctx: context.Background(),
+func NewMutex(ctx context.Context, key string) *Mutex {
+	return &Mutex{
+		ctx: ctx,
 		key: key,
 		id:  strconv.Itoa(rd.Int()),
-	}
-}
-
-func (m *mutex) WithContext(ctx context.Context) *mutex {
-	return &mutex{
-		ctx: ctx,
-		key: m.key,
-		id:  m.id,
 	}
 }
 
@@ -48,28 +44,24 @@ else
 	return redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
 end`
 
-func (m *mutex) TryLock() bool {
+// 尝试加锁
+func (m *Mutex) TryLock() bool {
 	keys := []string{m.key}
-	resp, err := rdb.Eval(m.ctx, lockScript, keys, m.id, maxTimeout).Result()
-	if err != nil && err != redis.Nil {
-		return false
-	}
-
-	reply, ok := resp.(string)
-	return ok && reply == "OK"
+	resp, err := DB().Eval(m.ctx, lockScript, keys, m.id, mutexTimeout).Result()
+	return err == nil && resp.(string) == "OK"
 }
 
-func (m *mutex) Lock() bool {
+// 加锁。 每10-20ms重试一次，直到成功
+func (m *Mutex) Lock() {
 	for {
 		if m.TryLock() {
-			return true
+			return
 		}
 		select {
 		case <-m.ctx.Done():
-			return false
+			return
 		default:
-			retryTime := time.Duration(rd.Intn(30)+10) * time.Millisecond
-			fmt.Println("重试", retryTime)
+			retryTime := time.Duration(rd.Intn(10)+10) * time.Millisecond
 			time.Sleep(retryTime)
 		}
 	}
@@ -83,6 +75,6 @@ else
 	return 0
 end`
 
-func (m *mutex) UnLock() {
-	rdb.Eval(m.ctx, unLockScript, []string{m.key}, m.id)
+func (m *Mutex) UnLock() {
+	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
 }

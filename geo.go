@@ -1,6 +1,10 @@
 package rds
 
-import "github.com/redis/go-redis/v9"
+import (
+	"context"
+
+	"github.com/redis/go-redis/v9"
+)
 
 type GeoLocation = redis.GeoLocation
 type GeoPos = redis.GeoPos
@@ -9,8 +13,8 @@ type geo struct {
 	base
 }
 
-func NewGeo(key string) geo {
-	return geo{base: newBase(key)}
+func NewGeo(ctx context.Context, key string) geo {
+	return geo{base: newBase(ctx, key)}
 }
 
 // 添加经纬度坐标。 https://redis.io/docs/latest/commands/geoadd/
@@ -22,22 +26,22 @@ func (g *geo) GeoAdd(member string, longitude, latitude float64) error {
 		Longitude: longitude,
 		Latitude:  latitude,
 	}
-	return rdb.GeoAdd(ctx, g.key, location).Err()
+	return DB().GeoAdd(g.ctx, g.key, location).Err()
 }
 
 // 批量添加
 func (g *geo) GeoBatchAdd(locations ...*GeoLocation) error {
-	return rdb.GeoAdd(ctx, g.key, locations...).Err()
+	return DB().GeoAdd(g.ctx, g.key, locations...).Err()
 }
 
 // 获取经纬度
 func (g *geo) GeoPos(members ...string) []*GeoPos {
-	return rdb.GeoPos(ctx, g.key, members...).Val()
+	return DB().GeoPos(g.ctx, g.key, members...).Val()
 }
 
 // 计算距离（米) 如果其中一个成员不存在则返回0
 func (g *geo) GeoDist(member1, member2 string) float64 {
-	return rdb.GeoDist(ctx, g.key, member1, member2, "m").Val()
+	return DB().GeoDist(g.ctx, g.key, member1, member2, "m").Val()
 }
 
 /* 6.2已弃用
@@ -70,7 +74,7 @@ func (g *geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64,
 		WithDist:  withDist,  // 计算距离
 		WithHash:  false,
 	}
-	return rdb.GeoSearchLocation(ctx, g.key, query).Val()
+	return DB().GeoSearchLocation(g.ctx, g.key, query).Val()
 }
 
 // 依据一个成员搜索半径radius米范围内的点 （结果包含其本身）
@@ -92,5 +96,5 @@ func (g *geo) GeoSearchByMember(member string, radius float64, count int64, with
 		WithDist:  withDist,  // 计算距离
 		WithHash:  false,
 	}
-	return rdb.GeoSearchLocation(ctx, g.key, query).Val()
+	return DB().GeoSearchLocation(g.ctx, g.key, query).Val()
 }

@@ -1,36 +1,54 @@
 package rds
 
-type set struct {
+import (
+	"context"
+
+	"golang.org/x/exp/constraints"
+)
+
+type Set[E constraints.Ordered] struct {
 	base
 }
 
-// set 去重
-// 如果是对数字类型且量较大的去重（例用户id），使用bitmap效果更好
-func NewSet(key string) set {
-	return set{base: newBase(key)}
+// Set 去重
+func NewSet[E constraints.Ordered](ctx context.Context, key string) Set[E] {
+	return Set[E]{base: newBase(ctx, key)}
 }
 
-// 添加成员，返回添加后成员数
-func (s *set) SAdd(members ...any) (int64, error) {
-	return rdb.SAdd(ctx, s.key, members...).Result()
-}
-
-// 获取成员数
-func (s *set) SCard() int64 {
-	return rdb.SCard(ctx, s.key).Val()
-}
-
-// 是否为成员
-func (s *set) SIsMember(member any) bool {
-	return rdb.SIsMember(ctx, s.key, member).Val()
-}
-
-// 移除成员
-func (s *set) SRem(members ...any) (int64, error) {
-	return rdb.SRem(ctx, s.key, members...).Result()
+// 添加成员，返回添加成功数
+func (s *Set[E]) SAdd(members ...any) (success int, ok bool) {
+	cmd := DB().SAdd(s.ctx, s.key, members...)
+	s.done(cmd)
+	success, ok = int(cmd.Val()), cmd.Err() == nil
+	return
 }
 
 // 获取所有成员
-func (s *set) SMembers() []string {
-	return rdb.SMembers(ctx, s.key).Val()
+func (s *Set[E]) SMembers() (members []E, ok bool) {
+	cmd := DB().SMembers(s.ctx, s.key)
+	s.done(cmd)
+	members, ok = stringsToSlice[E](cmd.Val()), cmd.Err() == nil
+	return
+}
+
+// 获取成员数
+func (s *Set[E]) SCard() int {
+	cmd := DB().SCard(s.ctx, s.key)
+	s.done(cmd)
+	return int(cmd.Val())
+}
+
+// 是否为成员
+func (s *Set[E]) SIsMember(member E) (exists bool, err error) {
+	cmd := DB().SIsMember(s.ctx, s.key, member)
+	s.done(cmd)
+	return cmd.Result()
+}
+
+// 移除成员，返回移除成功数
+func (s *Set[E]) SRem(members ...E) (n int64, err error) {
+	args := toAnys(members)
+	cmd := DB().SRem(s.ctx, s.key, args...)
+	s.done(cmd)
+	return cmd.Result()
 }

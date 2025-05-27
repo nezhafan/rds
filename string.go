@@ -1,36 +1,38 @@
 package rds
 
 import (
+	"context"
 	"time"
 )
 
-type str struct {
+// type str struct {
+// 	base
+// }
+
+type String struct {
 	base
 }
 
-func NewString(key string) str {
-	return str{base: newBase(key)}
+func NewString(ctx context.Context, key string) String {
+	return String{base: newBase(ctx, key)}
 }
 
-// 合并了Set和SetEX。 强制设置时间
-func (s *str) Set(val any, exp time.Duration) error {
-	return rdb.Set(ctx, s.key, val, exp).Err()
+// 必须强制设置时间，若希望永久，则使用 rds.KeepTTL
+func (s *String) Set(val any, exp time.Duration) error {
+	cmd := DB().Set(s.ctx, s.key, val, exp)
+	s.done(cmd)
+	return cmd.Err()
 }
 
-func (s *str) SetNX(val any, exp time.Duration) (bool, error) {
-	return rdb.SetNX(ctx, s.key, val, exp).Result()
+func (s *String) SetNX(val any, exp time.Duration) (success bool, err error) {
+	cmd := DB().SetNX(s.ctx, s.key, val, exp)
+	s.done(cmd)
+	return cmd.Result()
 }
 
-// 注意的是，如果不存在则error为redis.Nil
-func (s *str) Get() string {
-	return rdb.Get(ctx, s.key).Val()
-}
-
-// 注意如果一个值已经是小数，则必须使用IncrByFloat
-func (s *str) IncrBy(incr int64) int64 {
-	return rdb.IncrBy(ctx, s.key, incr).Val()
-}
-
-func (s *str) IncrByFloat(incr float64) float64 {
-	return rdb.IncrByFloat(ctx, s.key, incr).Val()
+func (s *String) Get() (val string, ok bool) {
+	cmd := DB().Get(s.ctx, s.key)
+	s.done(cmd)
+	val, ok = cmd.Val(), cmd.Err() == nil
+	return
 }

@@ -7,57 +7,82 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// 文档 https://redis.uptrace.dev/zh/guide/
-
-var (
-	rdb *redis.Client
-	ctx = context.Background()
-)
-
-const (
-	OK  = "OK"
-	Nil = redis.Nil
-)
-
-func Connect(addr string, auth string, db int) error {
-	rdb = redis.NewClient(&redis.Options{
-		Addr:     addr,
-		Password: auth,
-		DB:       db,
-	})
-
-	return rdb.Ping(ctx).Err()
+type CmdableDo interface {
+	redis.Cmdable
+	Do(ctx context.Context, args ...interface{}) *redis.Cmd
 }
 
-// func Get() *redis.Client {
-// 	return rdb
-// }
+func Do(ctx context.Context, cmd, key string, args ...any) (any, error) {
+	cmds := append([]any{cmd, key}, args...)
+	return DB().Do(ctx, cmds...).Result()
+}
 
-func Do(args ...any) (any, error) {
-	return rdb.Do(ctx, args...).Result()
+var (
+	timeout = time.Second * 2
+)
+
+func SetTimeout(t time.Duration) {
+	timeout = t
 }
 
 type base struct {
-	key string
+	key    string
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-func newBase(key string) base {
-	return base{key: key}
+func newBase(ctx context.Context, key string) (b base) {
+	if ctx == nil {
+		b.ctx, b.cancel = context.WithTimeout(context.Background(), timeout)
+	} else {
+		b.ctx = ctx
+	}
+
+	if len(allKeyPrefix) == 0 {
+		b.key = key
+	} else {
+		b.key = allKeyPrefix + ":" + key
+	}
+	return
 }
 
-func (b *base) Expire(exp time.Duration) (bool, error) {
-	return rdb.Expire(ctx, b.key, exp).Result()
+var (
+	hooks []Hook
+)
+
+type Hook func(cmd redis.Cmder)
+
+func (b *base) done(cmd redis.Cmder) {
+	if b.cancel != nil {
+		b.cancel()
+	}
+
+	if len(hooks) > 0 {
+		for _, h := range hooks {
+			h(cmd)
+		}
+	}
+
 }
 
-func (b *base) Exists() (bool, error) {
-	i, err := rdb.Exists(ctx, b.key).Result()
-	return i == 1, err
+func (b *base) WithContext(ctx context.Context) *base {
+	b.ctx = ctx
+	return b
+}
+
+func (b *base) Expire(exp time.Duration) bool {
+	return DB().Expire(b.ctx, b.key, exp).Val()
+}
+
+func (b *base) Exists() bool {
+	i := DB().Exists(b.ctx, b.key).Val()
+	return i == 1
 }
 
 func (b *base) Del() bool {
-	return rdb.Del(ctx, b.key).Val() == 1
+	return DB().Del(b.ctx, b.key).Val() == 1
 }
 
 func (b *base) TTL() time.Duration {
-	return rdb.TTL(ctx, b.key).Val()
+	return DB().TTL(b.ctx, b.key).Val()
 }
