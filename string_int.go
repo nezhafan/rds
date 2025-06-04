@@ -1,41 +1,26 @@
 package rds
 
-import (
-	"context"
-	"strconv"
-	"time"
-)
+import "time"
 
 type Int struct {
 	base
 }
 
-func NewInt(ctx context.Context, key string) Int {
-	return Int{base: newBase(ctx, key)}
+func NewInt(key string, ops ...Option) *Int {
+	return &Int{base: newBase(key, ops...)}
 }
 
-func (s *Int) Set(val int, exp time.Duration) error {
-	cmd := DB().Set(s.ctx, s.key, val, exp)
-	s.done(cmd)
-	return cmd.Err()
-}
-
-func (s *Int) Get() (val int, err error) {
-	cmd := DB().Get(s.ctx, s.key)
-	s.done(cmd)
-	err = cmd.Err()
-	if err == nil {
-		val, _ = strconv.Atoi(cmd.Val())
-	}
+func (b *Int) Set(val int64, exp time.Duration) (ec ErrCmd) {
+	ec.cmd = b.db().Set(ctx, b.key, val, exp)
 	return
 }
 
-func (s *Int) IncrBy(incr int) (val int, err error) {
-	cmd := DB().IncrBy(s.ctx, s.key, int64(incr))
-	s.done(cmd)
-	err = cmd.Err()
-	if err == nil {
-		val = int(cmd.Val())
-	}
+func (b *Int) Get() (ic IntCmd) {
+	ic.cmd = b.db().Get(ctx, b.key)
+	return
+}
+
+func (b *Int) IncrBy(step int64) (ic IntCmd) {
+	ic.cmd = b.db().IncrBy(ctx, b.key, step)
 	return
 }

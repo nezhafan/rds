@@ -1,38 +1,26 @@
 package rds
 
-import (
-	"context"
-	"time"
-)
-
-// type str struct {
-// 	base
-// }
+import "time"
 
 type String struct {
 	base
 }
 
-func NewString(ctx context.Context, key string) String {
-	return String{base: newBase(ctx, key)}
+func NewString(key string, ops ...Option) *String {
+	return &String{base: newBase(key, ops...)}
 }
 
-// 必须强制设置时间，若希望永久，则使用 rds.KeepTTL
-func (s *String) Set(val any, exp time.Duration) error {
-	cmd := DB().Set(s.ctx, s.key, val, exp)
-	s.done(cmd)
-	return cmd.Err()
+func (s *String) Set(val string, exp time.Duration) (ec ErrCmd) {
+	ec.cmd = s.db().Set(ctx, s.key, val, exp)
+	return
 }
 
-func (s *String) SetNX(val any, exp time.Duration) (success bool, err error) {
-	cmd := DB().SetNX(s.ctx, s.key, val, exp)
-	s.done(cmd)
-	return cmd.Result()
+func (s *String) SetNX(val string, exp time.Duration) (bc BoolCmd) {
+	bc.cmd = s.db().SetNX(ctx, s.key, val, exp)
+	return
 }
 
-func (s *String) Get() (val string, ok bool) {
-	cmd := DB().Get(s.ctx, s.key)
-	s.done(cmd)
-	val, ok = cmd.Val(), cmd.Err() == nil
+func (s *String) Get() (sc StringCmd) {
+	sc.cmd = s.db().Get(ctx, s.key)
 	return
 }

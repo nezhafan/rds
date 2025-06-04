@@ -1,41 +1,26 @@
 package rds
 
-import (
-	"context"
-	"strconv"
-	"time"
-)
+import "time"
 
 type Float struct {
 	base
 }
 
-func NewFloat(ctx context.Context, key string) Float {
-	return Float{base: newBase(ctx, key)}
+func NewFloat(key string, ops ...Option) *Float {
+	return &Float{base: newBase(key, ops...)}
 }
 
-func (s *Float) Set(val int, exp time.Duration) error {
-	cmd := DB().Set(s.ctx, s.key, val, exp)
-	s.done(cmd)
-	return cmd.Err()
-}
-
-func (s *Float) Get() (val float64, err error) {
-	cmd := DB().Get(s.ctx, s.key)
-	s.done(cmd)
-	err = cmd.Err()
-	if err == nil {
-		val, _ = strconv.ParseFloat(cmd.Val(), 64)
-	}
+func (b *Float) Set(val float64, exp time.Duration) (c ErrCmd) {
+	c.cmd = b.db().Set(ctx, b.key, val, exp)
 	return
 }
 
-func (s *Float) IncrBy(incr float64) (val float64, err error) {
-	cmd := DB().IncrByFloat(s.ctx, s.key, incr)
-	s.done(cmd)
-	err = cmd.Err()
-	if err == nil {
-		val = cmd.Val()
-	}
+func (b *Float) Get() (c FloatCmd) {
+	c.cmd = b.db().Get(ctx, b.key)
+	return
+}
+
+func (b *Float) IncrBy(step float64) (c FloatCmd) {
+	c.cmd = b.db().IncrByFloat(ctx, b.key, step)
 	return
 }
