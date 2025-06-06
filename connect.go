@@ -8,7 +8,7 @@ import (
 
 // 文档 https://redis.uptrace.dev/zh/guide/
 var (
-	rdb *redis.Client
+	rdb redis.UniversalClient
 )
 
 func Connect(addr string, auth string, db int) error {
@@ -27,4 +27,8 @@ func Connect(addr string, auth string, db int) error {
 
 func DB() redis.UniversalClient {
 	return rdb
+}
+
+func SetDB(db redis.UniversalClient) {
+	rdb = db
 }

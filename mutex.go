@@ -16,7 +16,7 @@ type Locker interface {
 var (
 	_ Locker = (*Mutex)(nil)
 	// 锁自动释放时间(秒)
-	mutexTimeout = "60"
+	mutexTimeout = "30"
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 )

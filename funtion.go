@@ -1,7 +1,11 @@
 package rds
 
 import (
+	"reflect"
+	"strconv"
+
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/exp/constraints"
 )
 
 var (
@@ -29,4 +33,43 @@ func toAnys[E any](vals []E) []any {
 		ans[i] = v
 	}
 	return ans
+}
+
+func stringTo[E constraints.Ordered](input string) E {
+	var zero E
+	rt := reflect.TypeOf(zero)
+	switch rt.Kind() {
+	case reflect.String:
+		return any(input).(E)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
+			return any(n).(E)
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
+			return any(n).(E)
+		}
+	case reflect.Float32, reflect.Float64:
+		if n, err := strconv.ParseFloat(input, rt.Bits()); err == nil {
+			return any(n).(E)
+		}
+	case reflect.Bool:
+		if b, err := strconv.ParseBool(input); err == nil {
+			return any(b).(E)
+		}
+	}
+	return zero
+}
+
+func stringsToSlice[E constraints.Ordered](input []string) []E {
+	if len(input) == 0 {
+		return nil
+	}
+	output := make([]E, 0, len(input))
+
+	for _, s := range input {
+		output = append(output, stringTo[E](s))
+
+	}
+	return output
 }

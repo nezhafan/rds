@@ -1,5 +1,9 @@
 package rds
 
+import (
+	"testing"
+)
+
 type User struct {
 	Id   int    `redis:"id"`
 	Name string `redis:"name"`
@@ -11,30 +15,30 @@ func init() {
 	}
 }
 
-// func TestString(t *testing.T) {
-// 	str := NewString(nil, "test-string")
-// 	err := str.Set("123", time.Hour)
-// 	fmt.Println("set 123:", err)
-// 	b, err := str.SetNX("234", time.Hour)
-// 	fmt.Println("setnx 234:", b, err)
-// 	v, has := str.Get()
-// 	fmt.Println("get:", v, has)
-// 	ttl := str.TTL()
-// 	fmt.Println("ttl:", ttl)
-// 	ok := str.Expire(time.Second)
-// 	fmt.Println("expire:", ok)
-// 	ttl = str.TTL()
-// 	fmt.Println("ttl:", ttl)
-// 	ok = str.Del()
-// 	fmt.Println("del:", ok)
-// 	v, has = str.Get()
-// 	fmt.Println("get:", `"`+v+`"`, has)
-// 	ii := NewInt(nil, "test-int")
-// 	ii.IncrBy(1)
+func TestString(t *testing.T) {
+	// str := NewString(nil, "test-string")
+	// err := str.Set("123", time.Hour)
+	// fmt.Println("set 123:", err)
+	// b, err := str.SetNX("234", time.Hour)
+	// fmt.Println("setnx 234:", b, err)
+	// v, has := str.Get()
+	// fmt.Println("get:", v, has)
+	// ttl := str.TTL()
+	// fmt.Println("ttl:", ttl)
+	// ok := str.Expire(time.Second)
+	// fmt.Println("expire:", ok)
+	// ttl = str.TTL()
+	// fmt.Println("ttl:", ttl)
+	// ok = str.Del()
+	// fmt.Println("del:", ok)
+	// v, has = str.Get()
+	// fmt.Println("get:", `"`+v+`"`, has)
+	// ii := NewInt(nil, "test-int")
+	// ii.IncrBy(1)
 
-// 	ff := NewFloat(nil, "test-float")
-// 	ff.IncrBy(1.1)
-// }
+	ff := NewFloat("test-float")
+	ff.IncrBy(1.1)
+}
 
 // func BenchmarkString(b *testing.B) {
 // 	str := NewString(nil, "test-string")

@@ -2,32 +2,11 @@ package rds
 
 import (
 	"errors"
-	"reflect"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/exp/constraints"
 )
-
-// type cmder[T any] struct {
-//   redis.Cmder
-// }
-
-// func NewCmder[T any](cmder redis.Cmder) *Cmder[T] {
-//  return &cmder[T]{cmder: cmder}
-// }
-
-// func (c *cmder[T]) Result() (T, error) {
-//  return c.Cmder.(T), c.Cmder.Err()
-// }
-
-// func (c *cmder[T]) Val() T {
-//  return c.Cmder.(T)
-// }
-
-// func (c *cmder[T]) Err() error {
-//  return c.Cmder.Err()
-// }
 
 type MapCmd struct {
 	cmd    redis.Cmder
@@ -92,7 +71,7 @@ type BoolCmd struct {
 	cmd redis.Cmder
 }
 
-func (c *BoolCmd) Result() (bool, error) {
+func (c BoolCmd) Result() (bool, error) {
 	switch v := c.cmd.(type) {
 	case *redis.BoolCmd:
 		return v.Result()
@@ -105,12 +84,12 @@ func (c *BoolCmd) Result() (bool, error) {
 	}
 }
 
-func (c *BoolCmd) Val() bool {
+func (c BoolCmd) Val() bool {
 	v, _ := c.Result()
 	return v
 }
 
-func (c *BoolCmd) Err() error {
+func (c BoolCmd) Err() error {
 	return c.cmd.Err()
 }
 
@@ -223,43 +202,4 @@ func (c SliceCmd[T]) Val() []T {
 
 func (c SliceCmd[T]) Err() error {
 	return c.cmd.Err()
-}
-
-func stringTo[E constraints.Ordered](input string) E {
-	var zero E
-	rt := reflect.TypeOf(zero)
-	switch rt.Kind() {
-	case reflect.String:
-		return any(input).(E)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
-			return any(n).(E)
-		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
-			return any(n).(E)
-		}
-	case reflect.Float32, reflect.Float64:
-		if n, err := strconv.ParseFloat(input, rt.Bits()); err == nil {
-			return any(n).(E)
-		}
-	case reflect.Bool:
-		if b, err := strconv.ParseBool(input); err == nil {
-			return any(b).(E)
-		}
-	}
-	return zero
-}
-
-func stringsToSlice[E constraints.Ordered](input []string) []E {
-	if len(input) == 0 {
-		return nil
-	}
-	output := make([]E, 0, len(input))
-
-	for _, s := range input {
-		output = append(output, stringTo[E](s))
-
-	}
-	return output
 }
