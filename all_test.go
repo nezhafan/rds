@@ -1,6 +1,7 @@
 package rds
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -36,8 +37,13 @@ func TestString(t *testing.T) {
 	// ii := NewInt(nil, "test-int")
 	// ii.IncrBy(1)
 
-	ff := NewFloat("test-float")
-	ff.IncrBy(1.1)
+	ff := NewHashMap[string]("test-float")
+
+	fmt.Println(ff.HMGet().Val())
+
+	// aa := newBase("tes")
+	// c := aa.db().Set(ctx, "tes", 1, time.Second)
+	// fmt.Println(c.Result())
 }
 
 // func BenchmarkString(b *testing.B) {

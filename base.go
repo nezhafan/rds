@@ -23,17 +23,9 @@ var (
 
 type base struct {
 	key  string
+	exp  time.Duration
 	pipe redis.Pipeliner
 }
-
-func (b *base) db() redis.Cmdable {
-	if b.pipe != nil {
-		return b.pipe
-	}
-	return DB()
-}
-
-type Option func(b *base)
 
 func newBase(key string, ops ...Option) (b base) {
 	if len(allKeyPrefix) == 0 {
@@ -45,6 +37,20 @@ func newBase(key string, ops ...Option) (b base) {
 		op(&b)
 	}
 	return
+}
+
+func (b *base) db() redis.Cmdable {
+	if b.pipe != nil {
+		return b.pipe
+	}
+	return DB()
+}
+
+func (b *base) done() {
+	if b.exp > 0 {
+		b.exp = 0
+		b.Expire(b.exp)
+	}
 }
 
 func (b *base) Expire(exp time.Duration) bool {
@@ -62,4 +68,18 @@ func (b *base) Del() bool {
 
 func (b *base) TTL() time.Duration {
 	return DB().TTL(ctx, b.key).Val()
+}
+
+type Option func(b *base)
+
+func WithPipe(pipe redis.Pipeliner) Option {
+	return func(b *base) {
+		b.pipe = pipe
+	}
+}
+
+func WithExpire(exp time.Duration) Option {
+	return func(b *base) {
+		b.exp = exp
+	}
 }

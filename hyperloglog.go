@@ -11,23 +11,23 @@ func NewHyperLogLog(key string, ops ...Option) hyperloglog {
 }
 
 // 添加，至少有一个添加成功返回true，否则返回false
-func (h *hyperloglog) PFAdd(vals ...any) (c BoolCmd) {
-	c.cmd = h.db().PFAdd(ctx, h.key, vals...)
-	return
+func (h *hyperloglog) PFAdd(vals ...any) *BoolCmd {
+	cmd := h.db().PFAdd(ctx, h.key, vals...)
+	return &BoolCmd{cmd: cmd}
 }
 
 // 统计数量，是存在0.81%误差的
-func (h *hyperloglog) PFCount() (c IntCmd) {
-	c.cmd = h.db().PFCount(ctx, h.key)
-	return
+func (h *hyperloglog) PFCount() *IntCmd {
+	cmd := h.db().PFCount(ctx, h.key)
+	return &IntCmd{cmd: cmd}
 }
 
 // 合并其他的
-func (h *hyperloglog) PFMerge(hyperloglogs ...hyperloglog) (c BoolCmd) {
+func (h *hyperloglog) PFMerge(hyperloglogs ...hyperloglog) *BoolCmd {
 	keys := make([]string, len(hyperloglogs))
 	for i, hl := range hyperloglogs {
 		keys[i] = hl.key
 	}
-	c.cmd = h.db().PFMerge(ctx, h.key, keys...)
-	return
+	cmd := h.db().PFMerge(ctx, h.key, keys...)
+	return &BoolCmd{cmd: cmd}
 }

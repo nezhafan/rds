@@ -7,39 +7,42 @@ import (
 type GeoLocation = redis.GeoLocation
 type GeoPos = redis.GeoPos
 
-type geo struct {
+type Geo struct {
 	base
 }
 
-func NewGeo(key string, ops ...Option) geo {
-	return geo{base: newBase(key, ops...)}
+func NewGeo(key string, ops ...Option) *Geo {
+	return &Geo{base: newBase(key, ops...)}
 }
 
 // 添加经纬度坐标。 https://redis.io/docs/latest/commands/geoadd/
 // 有效经度范围为 -180 到 180 度。
 // 有效纬度范围为 -85.05112878 到 85.05112878 度。
-func (g *geo) GeoAdd(member string, longitude, latitude float64) error {
+func (g *Geo) GeoAdd(member string, longitude, latitude float64) *IntCmd {
 	location := &redis.GeoLocation{
 		Name:      member,
 		Longitude: longitude,
 		Latitude:  latitude,
 	}
-	return DB().GeoAdd(ctx, g.key, location).Err()
+	cmd := DB().GeoAdd(ctx, g.key, location)
+	return &IntCmd{cmd: cmd}
 }
 
 // 批量添加
-func (g *geo) GeoBatchAdd(locations ...*GeoLocation) error {
-	return DB().GeoAdd(ctx, g.key, locations...).Err()
+func (g *Geo) GeoBatchAdd(locations ...*GeoLocation) *IntCmd {
+	cmd := DB().GeoAdd(ctx, g.key, locations...)
+	return &IntCmd{cmd: cmd}
 }
 
 // 获取经纬度
-func (g *geo) GeoPos(members ...string) []*GeoPos {
-	return DB().GeoPos(ctx, g.key, members...).Val()
+func (g *Geo) GeoPos(members ...string) *redis.GeoPosCmd {
+	return DB().GeoPos(ctx, g.key, members...)
 }
 
 // 计算距离（米) 如果其中一个成员不存在则返回0
-func (g *geo) GeoDist(member1, member2 string) float64 {
-	return DB().GeoDist(ctx, g.key, member1, member2, "m").Val()
+func (g *Geo) GeoDist(member1, member2 string) *FloatCmd {
+	cmd := DB().GeoDist(ctx, g.key, member1, member2, "m")
+	return &FloatCmd{cmd: cmd}
 }
 
 /* 6.2已弃用
@@ -53,7 +56,7 @@ func (g *geo) GeoRadiusByMember() {
 */
 
 // 依据一个经纬度点搜索半径radius米范围内的点
-func (g *geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64, withCoord bool, withDist bool, ascSort bool) []redis.GeoLocation {
+func (g *Geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64, withCoord bool, withDist bool, ascSort bool) *redis.GeoSearchLocationCmd {
 	var sort string
 	if ascSort {
 		sort = "ASC"
@@ -72,11 +75,11 @@ func (g *geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64,
 		WithDist:  withDist,  // 计算距离
 		WithHash:  false,
 	}
-	return DB().GeoSearchLocation(ctx, g.key, query).Val()
+	return DB().GeoSearchLocation(ctx, g.key, query)
 }
 
 // 依据一个成员搜索半径radius米范围内的点 （结果包含其本身）
-func (g *geo) GeoSearchByMember(member string, radius float64, count int64, withCoord bool, withDist bool, ascSort bool) []redis.GeoLocation {
+func (g *Geo) GeoSearchByMember(member string, radius float64, count int64, withCoord bool, withDist bool, ascSort bool) *redis.GeoSearchLocationCmd {
 	var sort string
 	if ascSort {
 		sort = "ASC"
@@ -94,5 +97,5 @@ func (g *geo) GeoSearchByMember(member string, radius float64, count int64, with
 		WithDist:  withDist,  // 计算距离
 		WithHash:  false,
 	}
-	return DB().GeoSearchLocation(ctx, g.key, query).Val()
+	return DB().GeoSearchLocation(ctx, g.key, query)
 }
