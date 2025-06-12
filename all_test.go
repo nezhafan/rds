@@ -17,6 +17,25 @@ func init() {
 }
 
 func TestString(t *testing.T) {
+
+	ss := NewSortedSet[string, float64]("ss")
+	// defer ss.Del()
+	fmt.Println(ss.ZAdd(Z[string, float64]{
+		Member: "a",
+		Score:  3.3,
+	}, Z[string, float64]{
+		Member: "b",
+		Score:  2.3,
+	}).Val())
+
+	fmt.Println(ss.ZCard().Val())
+	fmt.Println(ss.ZCount(0, 300).Val())
+
+	fmt.Println(ss.ZRem("a").Val())
+
+	fmt.Println(ss.ZRangeByScore(0, 100, 0, 2).Val())
+	fmt.Println(ss.ZRangeByScoreWithScores(0, 100, 0, 2))
+	// fmt.Println(s)
 	// str := NewString(nil, "test-string")
 	// err := str.Set("123", time.Hour)
 	// fmt.Println("set 123:", err)
@@ -36,10 +55,6 @@ func TestString(t *testing.T) {
 	// fmt.Println("get:", `"`+v+`"`, has)
 	// ii := NewInt(nil, "test-int")
 	// ii.IncrBy(1)
-
-	ff := NewHashMap[string]("test-float")
-
-	fmt.Println(ff.HMGet().Val())
 
 	// aa := newBase("tes")
 	// c := aa.db().Set(ctx, "tes", 1, time.Second)

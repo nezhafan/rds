@@ -1,7 +1,6 @@
 package rds
 
 import (
-	"errors"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
@@ -12,20 +11,7 @@ type MapCmd[E Ordered] struct {
 	fields []string
 }
 
-func (mc *MapCmd[E]) Val() map[string]E {
-	v, _ := mc.Result()
-	return v
-}
-
-func (mc *MapCmd[E]) Err() error {
-	return mc.cmd.Err()
-}
-
-func (mc *MapCmd[E]) Result() (mp map[string]E, err error) {
-	if err = mc.cmd.Err(); err != nil {
-		return
-	}
-
+func (mc *MapCmd[E]) Val() (mp map[string]E) {
 	switch cmd := mc.cmd.(type) {
 	case *redis.MapStringStringCmd:
 		mp = make(map[string]E, len(cmd.Val()))
@@ -43,14 +29,31 @@ func (mc *MapCmd[E]) Result() (mp map[string]E, err error) {
 	return
 }
 
+func (c *MapCmd[E]) Err() error {
+	return c.cmd.Err()
+}
+
+func (c *MapCmd[E]) Result() (mp map[string]E, err error) {
+	return c.Val(), c.Err()
+}
+
 type StructCmd[E any] struct {
 	cmd    redis.Cmder
 	fields []string
 }
 
 func (c *StructCmd[E]) Val() *E {
-	v, _ := c.Result()
-	return v
+	if c.Err() != nil {
+		return nil
+	}
+	obj := new(E)
+	switch cmd := c.cmd.(type) {
+	case *redis.MapStringStringCmd:
+		cmd.Scan(obj)
+	case *redis.SliceCmd:
+		cmd.Scan(obj)
+	}
+	return obj
 }
 
 func (c *StructCmd[E]) Err() error {
@@ -58,18 +61,7 @@ func (c *StructCmd[E]) Err() error {
 }
 
 func (c *StructCmd[E]) Result() (obj *E, err error) {
-	if err = c.cmd.Err(); err != nil {
-		return
-	}
-
-	obj = new(E)
-	switch cmd := c.cmd.(type) {
-	case *redis.MapStringStringCmd:
-		cmd.Scan(obj)
-	case *redis.SliceCmd:
-		cmd.Scan(obj)
-	}
-	return
+	return c.Val(), c.Err()
 }
 
 type BoolCmd struct {
@@ -77,8 +69,16 @@ type BoolCmd struct {
 }
 
 func (c *BoolCmd) Val() bool {
-	v, _ := c.Result()
-	return v
+	switch v := c.cmd.(type) {
+	case *redis.BoolCmd:
+		return v.Val()
+	case *redis.IntCmd:
+		return v.Val() == 1
+	case *redis.StatusCmd:
+		return v.Val() == "OK"
+	default:
+		return false
+	}
 }
 
 func (c *BoolCmd) Err() error {
@@ -86,16 +86,7 @@ func (c *BoolCmd) Err() error {
 }
 
 func (c *BoolCmd) Result() (bool, error) {
-	switch v := c.cmd.(type) {
-	case *redis.BoolCmd:
-		return v.Result()
-	case *redis.IntCmd:
-		return v.Val() == 1, nil
-	case *redis.StatusCmd:
-		return v.Val() == "OK", nil
-	default:
-		return false, nil
-	}
+	return c.Val(), c.Err()
 }
 
 type StringCmd struct {
@@ -103,24 +94,24 @@ type StringCmd struct {
 }
 
 func (c *StringCmd) Val() string {
-	v, _, _ := c.Result()
-	return v
+	if v, ok := c.cmd.(*redis.StringCmd); ok {
+		return v.Val()
+	}
+
+	return ""
 }
 
 func (c *StringCmd) Err() error {
+	if c.cmd.Err() == redis.Nil {
+		return nil
+	}
 	return c.cmd.Err()
 }
 
 func (c *StringCmd) Result() (val string, exists bool, err error) {
-	if v, ok := c.cmd.(*redis.StringCmd); ok {
-		val, err = v.Result()
-		exists = err == nil
-		if errors.Is(err, redis.Nil) {
-			err = nil
-		}
-		return
-	}
-
+	val = c.Val()
+	exists = c.Err() == nil
+	err = c.Err()
 	return
 }
 
@@ -129,8 +120,15 @@ type IntCmd struct {
 }
 
 func (c *IntCmd) Val() int64 {
-	v, _ := c.Result()
-	return v
+	switch cmd := c.cmd.(type) {
+	case *redis.IntCmd:
+		return cmd.Val()
+	case *redis.StringCmd:
+		s := cmd.Val()
+		n, _ := strconv.ParseInt(s, 10, 64)
+		return n
+	}
+	return 0
 }
 
 func (c *IntCmd) Err() error {
@@ -138,18 +136,7 @@ func (c *IntCmd) Err() error {
 }
 
 func (c *IntCmd) Result() (int64, error) {
-	switch cmd := c.cmd.(type) {
-	case *redis.IntCmd:
-		return cmd.Result()
-	case *redis.StringCmd:
-		var n int64
-		s, err := cmd.Result()
-		if err == nil {
-			n, err = strconv.ParseInt(s, 10, 64)
-		}
-		return n, err
-	}
-	return 0, nil
+	return c.Val(), c.Err()
 }
 
 type FloatCmd struct {
@@ -157,8 +144,15 @@ type FloatCmd struct {
 }
 
 func (c *FloatCmd) Val() float64 {
-	v, _ := c.Result()
-	return v
+	switch cmd := c.cmd.(type) {
+	case *redis.FloatCmd:
+		return cmd.Val()
+	case *redis.StringCmd:
+		s := cmd.Val()
+		n, _ := strconv.ParseFloat(s, 64)
+		return n
+	}
+	return 0
 }
 
 func (c *FloatCmd) Err() error {
@@ -166,18 +160,7 @@ func (c *FloatCmd) Err() error {
 }
 
 func (c *FloatCmd) Result() (float64, error) {
-	switch cmd := c.cmd.(type) {
-	case *redis.FloatCmd:
-		return cmd.Result()
-	case *redis.StringCmd:
-		var n float64
-		s, err := cmd.Result()
-		if err == nil {
-			n, err = strconv.ParseFloat(s, 64)
-		}
-		return n, err
-	}
-	return 0, nil
+	return c.Val(), c.Err()
 }
 
 type SliceCmd[E Ordered] struct {
@@ -185,8 +168,7 @@ type SliceCmd[E Ordered] struct {
 }
 
 func (c *SliceCmd[E]) Val() []E {
-	v, _ := c.Result()
-	return v
+	return stringsToSlice[E](c.cmd.Val())
 }
 
 func (c *SliceCmd[E]) Err() error {
@@ -194,12 +176,28 @@ func (c *SliceCmd[E]) Err() error {
 }
 
 func (c *SliceCmd[E]) Result() (list []E, err error) {
-	return stringsToSlice[E](c.cmd.Val()), c.cmd.Err()
+	return c.Val(), c.cmd.Err()
 }
 
-type RedisCmd[E any] struct {
-	cmd redis.Cmd
+type AnyCmd[E Ordered] struct {
+	cmd *redis.StringCmd
 }
+
+func (c *AnyCmd[E]) Val() E {
+	return stringTo[E](c.cmd.Val())
+}
+
+func (c *AnyCmd[E]) Err() error {
+	return c.cmd.Err()
+}
+
+func (c *AnyCmd[E]) Result() (E, error) {
+	return c.Val(), c.cmd.Err()
+}
+
+// type RedisCmd[E any] struct {
+// 	cmd redis.Cmd
+// }
 
 // func (c *RedisCmd[E]) Val() E {
 // 	return c.cmd.Val().(E)

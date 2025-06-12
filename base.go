@@ -39,7 +39,7 @@ func newBase(key string, ops ...Option) (b base) {
 	return
 }
 
-func (b *base) db() redis.Cmdable {
+func (b *base) db() Cmdable {
 	if b.pipe != nil {
 		return b.pipe
 	}

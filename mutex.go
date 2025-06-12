@@ -4,17 +4,12 @@ import (
 	"context"
 	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 )
 
-type Locker interface {
-	TryLock() bool
-	Lock()
-	UnLock()
-}
-
 var (
-	_ Locker = (*Mutex)(nil)
+	_ sync.Locker = (*Mutex)(nil)
 	// 锁自动释放时间(秒)
 	mutexTimeout = "30"
 	// 随机数
@@ -75,6 +70,6 @@ else
 	return 0
 end`
 
-func (m *Mutex) UnLock() {
+func (m *Mutex) Unlock() {
 	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
 }

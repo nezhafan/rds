@@ -101,7 +101,6 @@ func stringsToSlice[E Ordered](input []string) []E {
 		return nil
 	}
 	output := make([]E, 0, len(input))
-
 	for _, s := range input {
 		output = append(output, stringTo[E](s))
 	}
