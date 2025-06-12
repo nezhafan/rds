@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/exp/constraints"
 )
 
 var (
@@ -35,21 +34,57 @@ func toAnys[E any](vals []E) []any {
 	return ans
 }
 
-func stringTo[E constraints.Ordered](input string) E {
+func stringTo[E Ordered](input string) E {
 	var zero E
 	rt := reflect.TypeOf(zero)
 	switch rt.Kind() {
 	case reflect.String:
 		return any(input).(E)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int:
+		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
+			return any(int(n)).(E)
+		}
+	case reflect.Int8:
+		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
+			return any(int8(n)).(E)
+		}
+	case reflect.Int16:
+		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
+			return any(int16(n)).(E)
+		}
+	case reflect.Int32:
+		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
+			return any(int32(n)).(E)
+		}
+	case reflect.Int64:
 		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
 			return any(n).(E)
 		}
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+	case reflect.Uint:
+		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
+			return any(uint(n)).(E)
+		}
+	case reflect.Uint8:
+		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
+			return any(uint8(n)).(E)
+		}
+	case reflect.Uint16:
+		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
+			return any(uint16(n)).(E)
+		}
+	case reflect.Uint32:
+		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
+			return any(uint32(n)).(E)
+		}
+	case reflect.Uint64:
 		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
 			return any(n).(E)
 		}
-	case reflect.Float32, reflect.Float64:
+	case reflect.Float32:
+		if n, err := strconv.ParseFloat(input, rt.Bits()); err == nil {
+			return any(float32(n)).(E)
+		}
+	case reflect.Float64:
 		if n, err := strconv.ParseFloat(input, rt.Bits()); err == nil {
 			return any(n).(E)
 		}
@@ -61,7 +96,7 @@ func stringTo[E constraints.Ordered](input string) E {
 	return zero
 }
 
-func stringsToSlice[E constraints.Ordered](input []string) []E {
+func stringsToSlice[E Ordered](input []string) []E {
 	if len(input) == 0 {
 		return nil
 	}
@@ -69,7 +104,6 @@ func stringsToSlice[E constraints.Ordered](input []string) []E {
 
 	for _, s := range input {
 		output = append(output, stringTo[E](s))
-
 	}
 	return output
 }

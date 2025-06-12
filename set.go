@@ -1,16 +1,14 @@
 package rds
 
-import (
-	"golang.org/x/exp/constraints"
-)
+import "fmt"
 
-type Set[E constraints.Ordered] struct {
+type Set[E Ordered] struct {
 	base
 }
 
 // Set 去重
-func NewSet[E constraints.Ordered](key string, ops ...Option) Set[E] {
-	return Set[E]{base: newBase(key, ops...)}
+func NewSet[E Ordered](key string, ops ...Option) *Set[E] {
+	return &Set[E]{base: newBase(key, ops...)}
 }
 
 // 添加成员，返回添加成功数
@@ -23,6 +21,7 @@ func (s *Set[E]) SAdd(members ...E) *IntCmd {
 // 获取所有成员
 func (s *Set[E]) SMembers() *SliceCmd[E] {
 	cmd := s.db().SMembers(ctx, s.key)
+	fmt.Println(cmd.Val())
 	return &SliceCmd[E]{cmd}
 }
 

@@ -197,10 +197,6 @@ func TestString(t *testing.T) {
 
 // }
 
-// func TestSet(t *testing.T) {
-// 	set := NewSet[int](nil, "test-set")
-// 	defer set.Del()
-
 // 	n, err := set.SAdd(1, 2)
 // 	fmt.Println("添加元素1|2，添加成功数", n, err)
 // 	// assert.Equal(t, 2, n)

@@ -1,14 +1,10 @@
 package rds
 
-import (
-	"golang.org/x/exp/constraints"
-)
-
-type HashMap[E constraints.Ordered] struct {
+type HashMap[E Ordered] struct {
 	base
 }
 
-func NewHashMap[E constraints.Ordered](key string, ops ...Option) *HashMap[E] {
+func NewHashMap[E Ordered](key string, ops ...Option) *HashMap[E] {
 	h := &HashMap[E]{base: newBase(key, ops...)}
 	return h
 }
@@ -39,9 +35,9 @@ func (b *HashMap[E]) HMGet(fields ...string) *MapCmd[E] {
 	return &MapCmd[E]{cmd: cmd, fields: fields}
 }
 
-func (b *HashMap[E]) HGetAll() *StructCmd[E] {
+func (b *HashMap[E]) HGetAll() *MapCmd[E] {
 	cmd := b.db().HGetAll(ctx, b.key)
-	return &StructCmd[E]{cmd: cmd}
+	return &MapCmd[E]{cmd: cmd}
 }
 
 // 返回删除成功数

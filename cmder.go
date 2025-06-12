@@ -5,10 +5,9 @@ import (
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
-	"golang.org/x/exp/constraints"
 )
 
-type MapCmd[E constraints.Ordered] struct {
+type MapCmd[E Ordered] struct {
 	cmd    redis.Cmder
 	fields []string
 }
@@ -181,7 +180,7 @@ func (c *FloatCmd) Result() (float64, error) {
 	return 0, nil
 }
 
-type SliceCmd[E constraints.Ordered] struct {
+type SliceCmd[E Ordered] struct {
 	cmd *redis.StringSliceCmd
 }
 
@@ -195,11 +194,7 @@ func (c *SliceCmd[E]) Err() error {
 }
 
 func (c *SliceCmd[E]) Result() (list []E, err error) {
-	err = c.cmd.Err()
-	if err != nil {
-		list = stringsToSlice[E](c.cmd.Val())
-	}
-	return
+	return stringsToSlice[E](c.cmd.Val()), c.cmd.Err()
 }
 
 type RedisCmd[E any] struct {

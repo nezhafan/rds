@@ -110,7 +110,7 @@ type bitmap struct {
 // 	return uint32(slice[0].(int64)), nil
 // }
 
-// type autobitfield[E constraints.Unsigned] struct {
+// type autobitfield[E Unsigned] struct {
 // 	base
 // 	bits []uint8
 // }
@@ -120,7 +120,7 @@ type bitmap struct {
 // bit位的大小不必为8的倍数（但是实际内存会对齐，剩余部分可以预留）
 // 在考虑数字最大值的情况下节约，如果设置的值超过范围，会保持在最大值，不会溢出。
 // 自动处理都是无符号类型，如果需要存负数，要么使用bitfield，要么用1位表示正负，代码再判断拼接。
-// func NewAutoBitField[E constraints.Unsigned](key string, bits ...uint8) autobitfield[E] {
+// func NewAutoBitField[E Unsigned](key string, bits ...uint8) autobitfield[E] {
 // 	if len(bits) == 0 {
 // 		panic("至少需要一个参数")
 // 	}
