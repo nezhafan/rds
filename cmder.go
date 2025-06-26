@@ -110,7 +110,7 @@ func (c *StringCmd) Err() error {
 
 func (c *StringCmd) Result() (val string, exists bool, err error) {
 	val = c.Val()
-	exists = c.Err() == nil
+	exists = c.cmd.Err() == nil
 	err = c.Err()
 	return
 }
