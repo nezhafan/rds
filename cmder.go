@@ -1,6 +1,8 @@
 package rds
 
 import (
+	"encoding/json"
+	"reflect"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
@@ -43,9 +45,10 @@ type StructCmd[E any] struct {
 }
 
 func (c *StructCmd[E]) Val() *E {
-	if c.Err() != nil {
+	if c.cmd.Err() != nil {
 		return nil
 	}
+
 	obj := new(E)
 	switch cmd := c.cmd.(type) {
 	case *redis.MapStringStringCmd:
@@ -89,30 +92,67 @@ func (c *BoolCmd) Result() (bool, error) {
 	return c.Val(), c.Err()
 }
 
-type StringCmd struct {
+type StringCmd[E Ordered] struct {
 	cmd redis.Cmder
 }
 
-func (c *StringCmd) Val() string {
+func (c *StringCmd[E]) Val() E {
 	if v, ok := c.cmd.(*redis.StringCmd); ok {
-		return v.Val()
+		return stringTo[E](v.Val())
 	}
 
-	return ""
+	var zero E
+	switch cmd := c.cmd.(type) {
+	case *redis.IntCmd:
+		reflect.ValueOf(&zero).Elem().SetInt(cmd.Val())
+	case *redis.FloatCmd:
+		reflect.ValueOf(&zero).Elem().SetFloat(cmd.Val())
+	}
+
+	return zero
 }
 
-func (c *StringCmd) Err() error {
+func (c *StringCmd[E]) Err() error {
 	if c.cmd.Err() == redis.Nil {
 		return nil
 	}
 	return c.cmd.Err()
 }
 
-func (c *StringCmd) Result() (val string, exists bool, err error) {
+func (c *StringCmd[E]) Result() (val E, exists bool, err error) {
 	val = c.Val()
 	exists = c.cmd.Err() == nil
 	err = c.Err()
 	return
+}
+
+type StringJSONCmd[E any] struct {
+	cmd redis.Cmder
+}
+
+func (c *StringJSONCmd[E]) Val() *E {
+	if c.cmd.Err() != nil {
+		return nil
+	}
+
+	var data E
+	switch cmd := c.cmd.(type) {
+	case *redis.StringCmd:
+		json.Unmarshal([]byte(cmd.Val()), &data)
+	}
+
+	return &data
+}
+
+func (c *StringJSONCmd[E]) Err() error {
+	if c.cmd.Err() == redis.Nil {
+		return nil
+	}
+	return c.cmd.Err()
+}
+
+func (c *StringJSONCmd[E]) Result() (*E, error) {
+	return c.Val(), c.Err()
 }
 
 type IntCmd struct {
@@ -126,6 +166,9 @@ func (c *IntCmd) Val() int64 {
 	case *redis.StringCmd:
 		s := cmd.Val()
 		n, _ := strconv.ParseInt(s, 10, 64)
+		return n
+	case *redis.Cmd:
+		n, _ := cmd.Int64()
 		return n
 	}
 	return 0
@@ -195,18 +238,29 @@ func (c *AnyCmd[E]) Result() (E, error) {
 	return c.Val(), c.cmd.Err()
 }
 
-// type RedisCmd[E any] struct {
-// 	cmd redis.Cmd
-// }
+type ZSliceCmd[M Ordered] struct {
+	cmd *redis.ZSliceCmd
+}
 
-// func (c *RedisCmd[E]) Val() E {
-// 	return c.cmd.Val().(E)
-// }
+func (c *ZSliceCmd[M]) Val() []Z[M] {
+	list := make([]Z[M], 0, len(c.cmd.Val()))
+	for _, v := range c.cmd.Val() {
+		var member M
+		if v, ok := v.Member.(string); ok {
+			member = stringTo[M](v)
+		}
+		list = append(list, Z[M]{
+			Score:  v.Score,
+			Member: member,
+		})
+	}
+	return list
+}
 
-// func (c *RedisCmd[E]) Err() error {
-// 	return c.cmd.Err()
-// }
+func (c *ZSliceCmd[M]) Err() error {
+	return c.cmd.Err()
+}
 
-// func (c *RedisCmd[E]) Result() (E, error) {
-// 	return c.cmd.Val().(E), c.cmd.Err()
-// }
+func (c *ZSliceCmd[M]) Result() ([]Z[M], error) {
+	return c.Val(), c.cmd.Err()
+}

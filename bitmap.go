@@ -4,47 +4,38 @@ type bitmap struct {
 	base
 }
 
-// // 位操作，适用于表达二元情况
-// // https://redis.io/docs/latest/commands/setbit/
-// func NewBitmap(key string, ops ...Option) bitmap {
-// 	return bitmap{base: newBase(key, ops...)}
-// }
+// 位操作，适用于表达二元情况
+// 不支持设置负数，最大uint32，占用512M内存
+// https://redis.io/docs/latest/commands/setbit/
+func NewBitmap(key string, ops ...Option) bitmap {
+	return bitmap{base: newBase(key, ops...)}
+}
 
-// // 不支持设置负数，最大 uint32，占用512M内存
-// func (b *bitmap) SetBit(offset uint32, ok bool) error {
-// 	var v int
-// 	if ok {
-// 		v = 1
-// 	}
-// 	ctx, cancel := b.context()
-// 	cmd := DB().SetBit(ctx, b.key, int64(offset), v)
-// 	b.done(cmd, cancel)
-// 	return cmd.Err()
-// }
+// 设置位，返回设置之前的状态
+func (b *bitmap) SetBit(offset uint32, ok bool) *BoolCmd {
+	var v int
+	if ok {
+		v = 1
+	}
+	cmd := b.db().SetBit(ctx, b.key, int64(offset), v)
+	b.done(cmd)
+	return &BoolCmd{cmd: cmd}
+}
 
-// // 获取
-// func (b *bitmap) GetBit(offset uint32) bool {
-// 	ctx, cancel := b.context()
-// 	cmd := DB().GetBit(ctx, b.key, int64(offset))
-// 	b.done(cmd, cancel)
-// 	return cmd.Val() == 1
-// }
+// 获取位状态
+func (b *bitmap) GetBit(offset uint32) *BoolCmd {
+	cmd := b.db().GetBit(ctx, b.key, int64(offset))
+	b.done(cmd)
+	return &BoolCmd{cmd: cmd}
+}
 
-// // 获取范围内1的个数
-// func (b *bitmap) BitCount(start, end int64) int64 {
-// 	// args := []any{"BITCOUNT", b.key, start, end, "BIT"}
-// 	// cmd := DB().Do(ctx, args...).Int64()
-
-// 	bitcount := &redis.BitCount{
-// 		Start: start,
-// 		End:   end,
-// 		Unit:  "BIT",
-// 	}
-// 	ctx, cancel := b.context()
-// 	cmd := DB().BitCount(ctx, b.key, bitcount)
-// 	b.done(cmd, cancel)
-// 	return cmd.Val()
-// }
+// 获取范围内1的个数
+func (b *bitmap) BitCount(start, end int64) *IntCmd {
+	args := []any{"bitcount", b.key, start, end, "bit"}
+	cmd := b.db().Do(ctx, args...)
+	b.done(cmd)
+	return &IntCmd{cmd: cmd}
+}
 
 // // 返回第一个0或1的位置
 // func (b *bitmap) BitPos(search int, start, end int64) int64 {

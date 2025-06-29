@@ -2,20 +2,11 @@ package rds
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
-
-// type CmdableDo interface {
-// 	redis.Cmdable
-// 	Do(ctx context.Context, args ...interface{}) *redis.Cmd
-// }
-
-// func Do(ctx context.Context, cmd, key string, args ...any) (any, error) {
-// 	cmds := append([]any{cmd, key}, args...)
-// 	return DB().Do(ctx, cmds...).Result()
-// }
 
 var (
 	ctx = context.Background()
@@ -46,28 +37,43 @@ func (b *base) db() Cmdable {
 	return DB()
 }
 
-func (b *base) done() {
-	if b.exp > 0 {
+func (b *base) done(cmd redis.Cmder) {
+	// 若给定了过期时间，则在操作后设置。若key不存在，则不置为0
+	// 这有个问题是，如果一直是是操作不存在的key
+	// 那么这里就会一直额外开销，但是相对于忘记设置过期这是可接受的
+	if b.exp > 0 && b.db().Expire(ctx, b.key, b.exp).Val() {
 		b.exp = 0
-		b.Expire(b.exp)
+	}
+
+	if debugMode == ModeCommand {
+		fmt.Println(cmd.Args()...)
+	} else if debugMode == ModeFull {
+		fmt.Println(cmd.String())
 	}
 }
 
 func (b *base) Expire(exp time.Duration) bool {
-	return DB().Expire(ctx, b.key, exp).Val()
+	cmd := b.db().Expire(ctx, b.key, exp)
+	b.done(cmd)
+	return cmd.Val()
 }
 
 func (b *base) Exists() bool {
-	i := DB().Exists(ctx, b.key).Val()
-	return i == 1
+	cmd := b.db().Exists(ctx, b.key)
+	b.done(cmd)
+	return cmd.Val() == 1
 }
 
 func (b *base) Del() bool {
-	return DB().Del(ctx, b.key).Val() == 1
+	cmd := b.db().Del(ctx, b.key)
+	b.done(cmd)
+	return cmd.Val() == 1
 }
 
 func (b *base) TTL() time.Duration {
-	return DB().TTL(ctx, b.key).Val()
+	cmd := b.db().TTL(ctx, b.key)
+	b.done(cmd)
+	return cmd.Val()
 }
 
 type Option func(b *base)

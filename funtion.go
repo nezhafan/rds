@@ -1,29 +1,44 @@
 package rds
 
 import (
+	"encoding/json"
 	"reflect"
 	"strconv"
 
 	"github.com/redis/go-redis/v9"
 )
 
-var (
-	// 所有key前缀
-	allKeyPrefix = ""
-)
+type Mode int
 
 const (
 	OK      = "OK"
 	Nil     = redis.Nil
 	KeepTTL = redis.KeepTTL
 
+	// DEBUG 模式
+	ModeClose   Mode = 1 // 不器用
+	ModeCommand Mode = 2 // 打印执行的命令
+	ModeFull    Mode = 3 // 打印执行的命令和返回
+
 	// version74 = "7.4.0"
 	// version80 = "8.0.0"
+)
+
+var (
+	// 所有key前缀
+	allKeyPrefix = ""
+	// debug模式
+	debugMode = ModeClose
 )
 
 // 设置所有key的前缀
 func SetPrefix(prefix string) {
 	allKeyPrefix = prefix
+}
+
+// 设置DEBUG模式
+func SetDebug(mode Mode) {
+	debugMode = mode
 }
 
 func toAnys[E any](vals []E) []any {
@@ -105,4 +120,43 @@ func stringsToSlice[E Ordered](input []string) []E {
 		output = append(output, stringTo[E](s))
 	}
 	return output
+}
+
+func toJSON(data any) string {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+func toString(v any) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case int8:
+		return strconv.Itoa(int(x))
+	case int16:
+		return strconv.Itoa(int(x))
+	case int32:
+		return strconv.Itoa(int(x))
+	case int64:
+		return strconv.Itoa(int(x))
+	case uint8:
+		return strconv.Itoa(int(x))
+	case uint16:
+		return strconv.Itoa(int(x))
+	case uint32:
+		return strconv.Itoa(int(x))
+	case uint64:
+		return strconv.Itoa(int(x))
+	case float32:
+		return strconv.FormatFloat(float64(x), 'f', -1, 32)
+	case float64:
+		return strconv.FormatFloat(x, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(x)
+	default:
+		return toJSON(x)
+	}
 }

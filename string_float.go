@@ -10,17 +10,26 @@ func NewStringFloat(key string, ops ...Option) *StringFloat {
 	return &StringFloat{base: newBase(key, ops...)}
 }
 
-func (b *StringFloat) Set(val float64, exp time.Duration) *BoolCmd {
-	cmd := b.db().Set(ctx, b.key, val, exp)
+func (s *StringFloat) Set(val float64, exp time.Duration) *BoolCmd {
+	cmd := s.db().Set(ctx, s.key, val, exp)
+	s.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
-func (b *StringFloat) Get() *FloatCmd {
-	cmd := b.db().Get(ctx, b.key)
-	return &FloatCmd{cmd: cmd}
+func (s *StringFloat) SetNX(val float64, exp time.Duration) *BoolCmd {
+	cmd := s.db().SetNX(ctx, s.key, val, exp)
+	s.done(cmd)
+	return &BoolCmd{cmd: cmd}
 }
 
-func (b *StringFloat) IncrBy(step float64) *FloatCmd {
-	cmd := b.db().IncrByFloat(ctx, b.key, step)
-	return &FloatCmd{cmd: cmd}
+func (s *StringFloat) Get() *StringCmd[float64] {
+	cmd := s.db().Get(ctx, s.key)
+	s.done(cmd)
+	return &StringCmd[float64]{cmd: cmd}
+}
+
+func (s *StringFloat) IncrBy(step float64) *StringCmd[float64] {
+	cmd := s.db().IncrByFloat(ctx, s.key, step)
+	s.done(cmd)
+	return &StringCmd[float64]{cmd: cmd}
 }

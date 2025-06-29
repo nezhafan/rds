@@ -1,14 +1,9 @@
 package rds
 
 import (
-	"fmt"
 	"testing"
+	"time"
 )
-
-type User struct {
-	Id   int    `redis:"id"`
-	Name string `redis:"name"`
-}
 
 func init() {
 	if err := Connect("127.0.0.1:6379", "123456", 0); err != nil {
@@ -16,49 +11,26 @@ func init() {
 	}
 }
 
+// 注意hash存储和获取对象时，需要设置redis:"xxx"标签
+type User struct {
+	Id   int    `redis:"id"`
+	Name string `redis:"name"`
+}
+
 func TestString(t *testing.T) {
+	SetDebug(ModeFull)
+	// score只能是数字， member处理为数字或字符串
+	cache := NewSortedSet[string]("sorted_set", WithExpire(time.Hour))
+	// 先清空
+	cache.Del()
+	// 添加。 member不可以重复，score可以重复
+	cache.ZAdd(map[string]float64{
+		"A": 98.5,
+		"B": 90,
+		"C": 88.5,
+	})
 
-	ss := NewSortedSet[string, float64]("ss")
-	// defer ss.Del()
-	fmt.Println(ss.ZAdd(Z[string, float64]{
-		Member: "a",
-		Score:  3.3,
-	}, Z[string, float64]{
-		Member: "b",
-		Score:  2.3,
-	}).Val())
-
-	fmt.Println(ss.ZCard().Val())
-	fmt.Println(ss.ZCount(0, 300).Val())
-
-	fmt.Println(ss.ZRem("a").Val())
-
-	fmt.Println(ss.ZRangeByScore(0, 100, 0, 2).Val())
-	fmt.Println(ss.ZRangeByScoreWithScores(0, 100, 0, 2))
-	// fmt.Println(s)
-	// str := NewString(nil, "test-string")
-	// err := str.Set("123", time.Hour)
-	// fmt.Println("set 123:", err)
-	// b, err := str.SetNX("234", time.Hour)
-	// fmt.Println("setnx 234:", b, err)
-	// v, has := str.Get()
-	// fmt.Println("get:", v, has)
-	// ttl := str.TTL()
-	// fmt.Println("ttl:", ttl)
-	// ok := str.Expire(time.Second)
-	// fmt.Println("expire:", ok)
-	// ttl = str.TTL()
-	// fmt.Println("ttl:", ttl)
-	// ok = str.Del()
-	// fmt.Println("del:", ok)
-	// v, has = str.Get()
-	// fmt.Println("get:", `"`+v+`"`, has)
-	// ii := NewInt(nil, "test-int")
-	// ii.IncrBy(1)
-
-	// aa := newBase("tes")
-	// c := aa.db().Set(ctx, "tes", 1, time.Second)
-	// fmt.Println(c.Result())
+	cache.ZItemsByRank(0, 100, ASC)
 }
 
 // func BenchmarkString(b *testing.B) {
