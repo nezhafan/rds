@@ -13,14 +13,14 @@
   - `Set`、`List`、`SortedSet` 支持区分存储字符串还是数值，不会混淆。
   - `Bitmap` 位图，将0和1转为true和false
 - 简化参数
-  - 省略了 `context.Context` 参数。 1通过可选参数`WithContext`设置，2默认使用连接时设置的超时
   - 在第一次 new 结构体的时候传参 `key`，之后就不用每次传 `key`，很多类型可以直接声明在函数外。
-  - 支持Option参数来传递 pipeline 或者 初始化时即设置key的过期时间
+  - 省略了 `context.Context` 参数。 1通过可选参数`WithContext`设置，2默认使用连接时设置的超时
+  - 可选参数`WithExpire`设置过期时间
+  - 可选参数`WithPipe`设置管道，使用方式见下例。
 - 优化返回。对 `redis.Nil` 处理，用以区分空字符串和不存在，涉及这个的会返回3个值：val、exists、error
 - 全局参数
   - 支持debug模式`SetDebug`，会将执行的命令和返回内容清晰的打印
   - 增加了自动设置前缀方式 `SetPrefix()`
-
 
 ### 用法举例
 ##### 1. String 
@@ -284,20 +284,43 @@ fmt.Println(all)
 ```
 
 ##### 6. Bitmap
-  ```go
-	var point uint32 = 999
-	cache := rds.NewBitmap("bitmap", rds.WithExpire(time.Minute))
-	cache.Del()
-	// 第一次设置 （返回未设置之前的状态false）
-	val := cache.SetBit(point, true).Val()
-	fmt.Println(val)
-	// 第二次设置（返回上次的状态true）
-	val = cache.SetBit(point, true).Val()
-	fmt.Println(val)
-	// 获取 （返回状态true）
-	ok := cache.GetBit(point).Val()
-	fmt.Println(ok)
-	// 统计区间内1的位数
-	n := cache.BitCount(0, int64(point)).Val()
-	fmt.Println(n)
-  ```
+```go
+var point uint32 = 999
+cache := rds.NewBitmap("bitmap", rds.WithExpire(time.Minute))
+cache.Del()
+// 第一次设置 （返回未设置之前的状态false）
+val := cache.SetBit(point, true).Val()
+fmt.Println(val)
+// 第二次设置（返回上次的状态true）
+val = cache.SetBit(point, true).Val()
+fmt.Println(val)
+// 获取 （返回状态true）
+ok := cache.GetBit(point).Val()
+fmt.Println(ok)
+// 统计区间内1的位数
+n := cache.BitCount(0, int64(point)).Val()
+fmt.Println(n)
+```
+
+#### 7.管道pipeline
+```go
+var cmd1 Cmder[map[string]int]
+var cmd2 Cmder[time.Duration]
+Pipelined(context.Background(), func(p redis.Pipeliner) {
+  cache := NewHashMap[int]("test_pipe", WithPipe(p), WithExpire(time.Minute))
+  cache.HSet("a", 1)
+  cache.HSet("b", 2)
+  // 错误方式
+  // result := cache.HGetAll().Val()
+  // ttl :=  cache.TTL().Val()
+  // 正确方式 - 1
+  cmd1 = cache.HGetAll()
+  cmd2 = cache.TTL()
+})
+// 正确方式 - 2
+result := cmd1.Val()
+ttl := cmd2.Val()
+
+fmt.Println(result, ttl)
+// 执行后的值必须在函数外才可以获取到
+```

@@ -1,9 +1,12 @@
 package rds
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func init() {
@@ -20,18 +23,24 @@ type User struct {
 
 func TestString(t *testing.T) {
 	SetDebug(ModeFull)
-	start := time.Now()
-	fmt.Println("开始时间", start)
-	// ctx, _ := context.WithTimeout(context.Background(), time.Second)
-	// score只能是数字， member处理为数字或字符串
-	cache := NewHashMap[uint32]("hash_map_uint32", WithExpire(time.Minute))
-	cache.HSet("a", 2)
-	cache.HMSet(map[string]uint32{"c": 44, "b": 3})
+	var cmd1 Cmder[map[string]int]
+	var cmd2 Cmder[time.Duration]
+	Pipelined(context.Background(), func(p redis.Pipeliner) {
+		cache := NewHashMap[int]("test_pipe", WithPipe(p), WithExpire(time.Minute))
+		cache.HSet("a", 1)
+		cache.HSet("b", 2)
+		// 错误方式
+		// result := cache.HGetAll().Val()
+		// ttl :=  cache.TTL().Val()
+		// 正确方式 - 1
+		cmd1 = cache.HGetAll()
+		cmd2 = cache.TTL()
+	})
+	// 正确方式 - 2
+	result := cmd1.Val()
+	ttl := cmd2.Val()
 
-	fmt.Println(cache.HGetAll().Val())
-	fmt.Println(cache.HMGet("a", "c", "e").Val())
-
-	fmt.Println("耗时", time.Since(start).Seconds())
+	fmt.Println(result, ttl)
 }
 
 // func BenchmarkString(b *testing.B) {

@@ -4,9 +4,16 @@ import (
 	"encoding/json"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
+
+type Cmder[E any] interface {
+	Val() E
+	Err() error
+	Result() (E, error)
+}
 
 type MapCmd[E Ordered] struct {
 	cmd    redis.Cmder
@@ -152,6 +159,22 @@ func (c *StringJSONCmd[E]) Err() error {
 }
 
 func (c *StringJSONCmd[E]) Result() (*E, error) {
+	return c.Val(), c.Err()
+}
+
+type DurationCmd struct {
+	cmd *redis.DurationCmd
+}
+
+func (c *DurationCmd) Val() time.Duration {
+	return c.cmd.Val()
+}
+
+func (c *DurationCmd) Err() error {
+	return c.cmd.Err()
+}
+
+func (c *DurationCmd) Result() (time.Duration, error) {
 	return c.Val(), c.Err()
 }
 

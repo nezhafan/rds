@@ -25,9 +25,6 @@ func newBase(key string, ops ...Option) (b base) {
 	for _, op := range ops {
 		op(&b)
 	}
-	if timeout, ok := b.ctx.Deadline(); ok {
-		fmt.Println("超时时间", timeout)
-	}
 	return
 }
 
@@ -53,28 +50,28 @@ func (b *base) done(cmd redis.Cmder) {
 	}
 }
 
-func (b *base) Expire(exp time.Duration) bool {
+func (b *base) Expire(exp time.Duration) *BoolCmd {
 	cmd := b.db().Expire(b.ctx, b.key, exp)
 	b.done(cmd)
-	return cmd.Val()
+	return &BoolCmd{cmd: cmd}
 }
 
-func (b *base) Exists() bool {
+func (b *base) Exists() *BoolCmd {
 	cmd := b.db().Exists(b.ctx, b.key)
 	b.done(cmd)
-	return cmd.Val() == 1
+	return &BoolCmd{cmd: cmd}
 }
 
-func (b *base) Del() bool {
+func (b *base) Del() *BoolCmd {
 	cmd := b.db().Del(b.ctx, b.key)
 	b.done(cmd)
-	return cmd.Val() == 1
+	return &BoolCmd{cmd: cmd}
 }
 
-func (b *base) TTL() time.Duration {
+func (b *base) TTL() *DurationCmd {
 	cmd := b.db().TTL(b.ctx, b.key)
 	b.done(cmd)
-	return cmd.Val()
+	return &DurationCmd{cmd: cmd}
 }
 
 type Option func(b *base)
