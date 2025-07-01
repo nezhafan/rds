@@ -17,14 +17,14 @@ func (b *bitmap) SetBit(offset uint32, ok bool) *BoolCmd {
 	if ok {
 		v = 1
 	}
-	cmd := b.db().SetBit(ctx, b.key, int64(offset), v)
+	cmd := b.db().SetBit(b.ctx, b.key, int64(offset), v)
 	b.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
 // 获取位状态
 func (b *bitmap) GetBit(offset uint32) *BoolCmd {
-	cmd := b.db().GetBit(ctx, b.key, int64(offset))
+	cmd := b.db().GetBit(b.ctx, b.key, int64(offset))
 	b.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
@@ -32,7 +32,7 @@ func (b *bitmap) GetBit(offset uint32) *BoolCmd {
 // 获取范围内1的个数
 func (b *bitmap) BitCount(start, end int64) *IntCmd {
 	args := []any{"bitcount", b.key, start, end, "bit"}
-	cmd := b.db().Do(ctx, args...)
+	cmd := b.db().Do(b.ctx, args...)
 	b.done(cmd)
 	return &IntCmd{cmd: cmd}
 }
@@ -42,9 +42,9 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // 	if search > 1 {
 // 		search = 1
 // 	}
-// 	ctx, cancel := b.context()
+// 	b.ctx, cancel := b.context()
 // 	args := []any{"BITPOS", b.key, search, start, end, "BIT"}
-// 	i, _ := DB().Do(ctx, args...).Int64()
+// 	i, _ := DB().Do(b.ctx, args...).Int64()
 // 	return i
 // }
 
@@ -55,8 +55,8 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // 	commands := make([]any, 0, len(srcKeys)+3)
 // 	commands = append(commands, "BITOP", op, b.key)
 // 	commands = append(commands, srcKeys...)
-// 	ctx, cancel := b.context()
-// 	cmd := DB().Do(ctx, commands...)
+// 	b.ctx, cancel := b.context()
+// 	cmd := DB().Do(b.ctx, commands...)
 // 	b.done(cmd, cancel)
 // 	return cmd.Err()
 // }
@@ -75,8 +75,8 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // }
 
 // func (b *bitfield) Set(typ string, offset uint32, value uint32) (uint32, error) {
-// 	ctx, cancel := b.context()
-// 	slice, err := DB().Do(ctx, "BITFIELD", b.key, "OVERFLOW", "SAT", "SET", typ, offset, value).Slice()
+// 	b.ctx, cancel := b.context()
+// 	slice, err := DB().Do(b.ctx, "BITFIELD", b.key, "OVERFLOW", "SAT", "SET", typ, offset, value).Slice()
 // 	if err != nil {
 // 		return 0, err
 // 	}
@@ -84,8 +84,8 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // }
 
 // func (b *bitfield) IncrBy(typ string, offset uint32, value uint32) (uint32, error) {
-// 	ctx, cancel := b.context()
-// 	slice, err := DB().Do(ctx, "BITFIELD", b.key, "OVERFLOW", "SAT", "INCRBY", typ, offset, value).Slice()
+// 	b.ctx, cancel := b.context()
+// 	slice, err := DB().Do(b.ctx, "BITFIELD", b.key, "OVERFLOW", "SAT", "INCRBY", typ, offset, value).Slice()
 // 	if err != nil {
 // 		return 0, err
 // 	}
@@ -93,8 +93,8 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // }
 
 // func (b *bitfield) Get(typ string, offset uint32) (uint32, error) {
-// 	ctx, cancel := b.context()
-// 	slice, err := DB().Do(ctx, "BITFIELD_RO", b.key, "GET", typ, offset).Slice()
+// 	b.ctx, cancel := b.context()
+// 	slice, err := DB().Do(b.ctx, "BITFIELD_RO", b.key, "GET", typ, offset).Slice()
 // 	if err != nil {
 // 		return 0, err
 // 	}
@@ -174,7 +174,7 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // }
 
 // func (b *autobitfield[E]) autodo(commands []any) ([]uint32, error) {
-// 	slice, err := DB().Do(ctx, commands...).Int64Slice()
+// 	slice, err := DB().Do(b.ctx, commands...).Int64Slice()
 // 	if err != nil {
 // 		return nil, err
 // 	}

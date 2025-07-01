@@ -11,19 +11,19 @@ func NewStringJSON[E any](key string, ops ...Option) *StringJSON[E] {
 }
 
 func (s *StringJSON[E]) Set(val *E, exp time.Duration) *BoolCmd {
-	cmd := s.db().Set(ctx, s.key, toJSON(val), exp)
+	cmd := s.db().Set(s.ctx, s.key, toJSON(val), exp)
 	s.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
 func (s *StringJSON[E]) SetNX(val *E, exp time.Duration) *BoolCmd {
-	cmd := s.db().SetNX(ctx, s.key, toJSON(val), exp)
+	cmd := s.db().SetNX(s.ctx, s.key, toJSON(val), exp)
 	s.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
 func (s *StringJSON[E]) Get() *StringJSONCmd[E] {
-	cmd := s.db().Get(ctx, s.key)
+	cmd := s.db().Get(s.ctx, s.key)
 	s.done(cmd)
 	return &StringJSONCmd[E]{cmd: cmd}
 }

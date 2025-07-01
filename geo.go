@@ -24,26 +24,26 @@ func (g *Geo) GeoAdd(member string, longitude, latitude float64) *IntCmd {
 		Longitude: longitude,
 		Latitude:  latitude,
 	}
-	cmd := g.db().GeoAdd(ctx, g.key, location)
+	cmd := g.db().GeoAdd(g.ctx, g.key, location)
 	g.done(cmd)
 	return &IntCmd{cmd: cmd}
 }
 
 // 批量添加
 func (g *Geo) GeoBatchAdd(locations ...*GeoLocation) *IntCmd {
-	cmd := g.db().GeoAdd(ctx, g.key, locations...)
+	cmd := g.db().GeoAdd(g.ctx, g.key, locations...)
 	g.done(cmd)
 	return &IntCmd{cmd: cmd}
 }
 
 // 获取经纬度
 func (g *Geo) GeoPos(members ...string) *redis.GeoPosCmd {
-	return g.db().GeoPos(ctx, g.key, members...)
+	return g.db().GeoPos(g.ctx, g.key, members...)
 }
 
 // 计算距离（米) 如果其中一个成员不存在则返回0
 func (g *Geo) GeoDist(member1, member2 string) *FloatCmd {
-	cmd := g.db().GeoDist(ctx, g.key, member1, member2, "m")
+	cmd := g.db().GeoDist(g.ctx, g.key, member1, member2, "m")
 	return &FloatCmd{cmd: cmd}
 }
 
@@ -77,7 +77,7 @@ func (g *Geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64,
 		WithDist:  withDist,  // 计算距离
 		WithHash:  false,
 	}
-	return g.db().GeoSearchLocation(ctx, g.key, query)
+	return g.db().GeoSearchLocation(g.ctx, g.key, query)
 }
 
 // 依据一个成员搜索半径radius米范围内的点 （结果包含其本身）
@@ -99,5 +99,5 @@ func (g *Geo) GeoSearchByMember(member string, radius float64, count int64, with
 		WithDist:  withDist,  // 计算距离
 		WithHash:  false,
 	}
-	return g.db().GeoSearchLocation(ctx, g.key, query)
+	return g.db().GeoSearchLocation(g.ctx, g.key, query)
 }

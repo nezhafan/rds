@@ -1,6 +1,7 @@
 package rds
 
 import (
+	"fmt"
 	"testing"
 	"time"
 )
@@ -19,18 +20,18 @@ type User struct {
 
 func TestString(t *testing.T) {
 	SetDebug(ModeFull)
+	start := time.Now()
+	fmt.Println("开始时间", start)
+	// ctx, _ := context.WithTimeout(context.Background(), time.Second)
 	// score只能是数字， member处理为数字或字符串
-	cache := NewSortedSet[string]("sorted_set", WithExpire(time.Hour))
-	// 先清空
-	cache.Del()
-	// 添加。 member不可以重复，score可以重复
-	cache.ZAdd(map[string]float64{
-		"A": 98.5,
-		"B": 90,
-		"C": 88.5,
-	})
+	cache := NewHashMap[uint32]("hash_map_uint32", WithExpire(time.Minute))
+	cache.HSet("a", 2)
+	cache.HMSet(map[string]uint32{"c": 44, "b": 3})
 
-	cache.ZItemsByRank(0, 100, ASC)
+	fmt.Println(cache.HGetAll().Val())
+	fmt.Println(cache.HMGet("a", "c", "e").Val())
+
+	fmt.Println("耗时", time.Since(start).Seconds())
 }
 
 // func BenchmarkString(b *testing.B) {
