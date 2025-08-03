@@ -1,7 +1,6 @@
 package rds
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -19,8 +18,8 @@ func (b *HashStruct[E]) SubKey(subkey string) *HashStruct[E] {
 	return NewHashStruct[E](b.key + ":" + subkey)
 }
 
-func (b *HashStruct[E]) SubID(subid int) *HashStruct[E] {
-	return NewHashStruct[E](b.key + ":" + strconv.Itoa(subid))
+func (b *HashStruct[E]) SubID(subid string) *HashStruct[E] {
+	return NewHashStruct[E](b.key + ":" + subid)
 }
 
 // 返回该字段是否为新增字段（修改不算新增）
@@ -48,6 +47,9 @@ func (b *HashStruct[E]) HMSet(obj *E, exp time.Duration) *BoolCmd {
 }
 
 func (b *HashStruct[E]) HMGet(fields ...string) *StructCmd[E] {
+	if len(fields) == 0 {
+		return b.HGetAll()
+	}
 	cmd := b.db().HMGet(b.ctx, b.key, fields...)
 	b.done(cmd)
 	return &StructCmd[E]{cmd: cmd, fields: fields}

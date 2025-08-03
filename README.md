@@ -130,13 +130,9 @@ func SetUser(user *User) {
 // 举例获取用户
 func GetUser(id int, fields ...string) (u *User) {
   // 函数内使用sub来分离区分是哪个用户
-  cache := userCache.SubID(id)
+  cache := userCache.SubID(strconv.Itoa(id))
   // fields不传时获取所有字段，否则获取指定字段
-  if len(fields) == 0 {
-    u = cache.HGetAll().Val()
-  } else {
-    u = cache.HMGet(fields...).Val()
-  }
+  u = cache.HMGet(fields...).Val()
   // 自己的缓存逻辑
   if u == nil {
 
