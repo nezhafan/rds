@@ -331,3 +331,19 @@ result := cmd1.Val()
 ttl := cmd2.Val()
 fmt.Println(result, ttl)
 ```
+
+#### 8.分布式锁
+```go
+// 方式一：加锁。若失败则阻塞且不断重试
+mu := rds.NewMutex(ctx, "1")
+mu.Lock()
+defer mu.Unlock()
+// do...
+
+// 方式二：加锁。若失败直接返回
+mu := rds.NewMutex(ctx, "1")
+if !mu.TryLock() {
+  return ""
+}
+// do...
+```
