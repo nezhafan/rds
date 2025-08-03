@@ -15,7 +15,6 @@
 - 简化参数
   - 在第一次 new 结构体的时候传参 `key`，之后就不用每次传 `key`，很多类型可以直接声明在函数外。
   - 省略了 `context.Context` 参数。 1通过可选参数`WithContext`设置，2默认使用连接时设置的超时
-  - 可选参数`WithExpire`设置过期时间
   - 可选参数`WithPipe`设置管道，使用方式见下例。
 - 优化返回。对 `redis.Nil` 处理，用以区分空字符串和不存在，涉及这个的会返回3个值：val、exists、error
 - 全局参数
@@ -148,9 +147,9 @@ func GetUser(id int, fields ...string) (u *User) {
 - 存储一类键值对
 ```go
 // 以存储数值为例.  
-cache := NewHashMap[int64]("hash_map", rds.WithExpire(time.Minute))
-// 先清空
-cache.Del()
+cache := NewHashMap[int64]("hash_map")
+// 过期
+cache.Expire(time.Minute)
 // 设定单个值
 cache.HSet("A", 0)
 // 批量设定值 (不支持map[string]E ，所以自己确保any的值是E类型)
@@ -173,9 +172,9 @@ fmt.Println(val)
 
 ##### 3. Set 
 ```go
-cache := NewSet[int64]("set", rds.WithExpire(time.Minute))
-// 先清空
-cache.Del()
+cache := NewSet[int64]("set")
+// 过期
+cache.Expire(time.Minute)
 // 添加值，返回成功添加数
 val := cache.SAdd(1, 2).Val()
 fmt.Println(val)
@@ -198,7 +197,9 @@ fmt.Println(all)
 ##### 4. SortedSet
 ```go
 // score只能是数字， member处理为数字或字符串
-cache := rds.NewSortedSet[string]("sorted_set", rds.WithExpire(time.Minute))
+cache := rds.NewSortedSet[string]("sorted_set")
+// 过期
+cache.Expire(time.Minute)
 // 添加。 member不可以重复，score可以重复
 cache.ZAdd(map[string]float64{
   "A": 98.5,
@@ -253,9 +254,9 @@ cache.ZRemByScore(0, 89)
 
 ##### 5. List
 ```go
-cache := rds.NewList[int]("list", rds.WithExpire(time.Minute))
-// 先清空
-cache.Del()
+cache := rds.NewList[int]("list")
+// 过期
+cache.Expire(time.Minute)
 // 插入顺序 1、2、3、4、5
 cache.LPush(2, 1)
 cache.RPush(3, 4, 5)
@@ -286,8 +287,9 @@ fmt.Println(all)
 ##### 6. Bitmap
 ```go
 var point uint32 = 999
-cache := rds.NewBitmap("bitmap", rds.WithExpire(time.Minute))
-cache.Del()
+cache := rds.NewBitmap("bitmap")
+// 过期
+cache.Expire(time.Minute)
 // 第一次设置 （返回未设置之前的状态false）
 val := cache.SetBit(point, true).Val()
 fmt.Println(val)
@@ -302,25 +304,34 @@ n := cache.BitCount(0, int64(point)).Val()
 fmt.Println(n)
 ```
 
-#### 7.管道pipeline
+#### 7.事务管道
 ```go
 var cmd1 Cmder[map[string]int]
 var cmd2 Cmder[time.Duration]
-Pipelined(context.Background(), func(p redis.Pipeliner) {
-  cache := NewHashMap[int]("test_pipe", WithPipe(p), WithExpire(time.Minute))
+
+err := TxPipelined(context.Background(), func(p redis.Pipeliner) {
+  // 需要手动 withpipe
+  cache := NewHashMap[int]("test_pipe", WithPipe(p))
+  // 此时命令不会真正去发送给redis-server
   cache.HSet("a", 1)
   cache.HSet("b", 2)
-  // 错误方式
+
+  // 错误方式 (在事务中无法直接拿到值赋值给变量)
   // result := cache.HGetAll().Val()
   // ttl :=  cache.TTL().Val()
-  // 正确方式 - 1
+
+  // 正确方式 - 第一步：拿到 cmd ，此时无值
   cmd1 = cache.HGetAll()
   cmd2 = cache.TTL()
 })
-// 正确方式 - 2
+
+if err != nil {
+  fmt.Println(err)
+  return
+}
+
+// 正确方式 - 第二步：从cmd中拿到值 （因为此时事务已经提交）
 result := cmd1.Val()
 ttl := cmd2.Val()
-
 fmt.Println(result, ttl)
-// 执行后的值必须在函数外才可以获取到
 ```

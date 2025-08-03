@@ -25,21 +25,29 @@ func TestString(t *testing.T) {
 	SetDebug(ModeFull)
 	var cmd1 Cmder[map[string]int]
 	var cmd2 Cmder[time.Duration]
-	Pipelined(context.Background(), func(p redis.Pipeliner) {
-		cache := NewHashMap[int]("test_pipe", WithPipe(p), WithExpire(time.Minute))
+
+	err := TxPipelined(context.Background(), func(p redis.Pipeliner) {
+		// 需要手动 withpipe
+		cache := NewHashMap[int]("test_pipe", WithPipe(p))
 		cache.HSet("a", 1)
 		cache.HSet("b", 2)
-		// 错误方式
+		// 错误方式 (在事务中无法直接拿到值赋值给变量)
 		// result := cache.HGetAll().Val()
 		// ttl :=  cache.TTL().Val()
-		// 正确方式 - 1
+
+		// 正确方式 - 第一步：拿到 cmd ，此时无值
 		cmd1 = cache.HGetAll()
 		cmd2 = cache.TTL()
 	})
-	// 正确方式 - 2
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// 正确方式 - 第二步：从cmd中拿到值 （因为此时事务已经提交）
 	result := cmd1.Val()
 	ttl := cmd2.Val()
-
 	fmt.Println(result, ttl)
 }
 

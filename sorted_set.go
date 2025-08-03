@@ -38,12 +38,6 @@ func (s *SortedSet[M]) ZAdd(zs map[M]float64) *IntCmd {
 	return &IntCmd{cmd: cmd}
 }
 
-// 增长积分
-// func (s *SortedSet[M, S]) ZIncrBy(member M, increment S) *FloatCmd[S] {
-// 	cmd := s.db().ZIncrBy(s.ctx, s.key, float64(increment), member)
-// 	return &FloatCmd[S]{cmd: cmd}
-// }
-
 // 所有成员数
 func (s *SortedSet[M]) ZCard() *IntCmd {
 	cmd := s.db().ZCard(s.ctx, s.key)
