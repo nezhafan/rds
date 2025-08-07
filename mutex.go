@@ -4,12 +4,10 @@ import (
 	"context"
 	"math/rand"
 	"strconv"
-	"sync"
 	"time"
 )
 
 var (
-	_ sync.Locker = (*Mutex)(nil)
 	// 锁自动释放时间(秒)
 	mutexTimeout = "30"
 	// 随机数
@@ -23,6 +21,11 @@ type Mutex struct {
 }
 
 func NewMutex(ctx context.Context, key string) *Mutex {
+	if len(allKeyPrefix) > 0 {
+		key = allKeyPrefix + ":mutex:" + key
+	} else {
+		key = "mutex:" + key
+	}
 	return &Mutex{
 		ctx: ctx,
 		key: key,
@@ -46,15 +49,15 @@ func (m *Mutex) TryLock() bool {
 	return err == nil && resp.(string) == "OK"
 }
 
-// 加锁。 每10-20ms重试一次，直到成功
-func (m *Mutex) Lock() {
+// 加锁。 每10-20ms重试一次
+func (m *Mutex) Lock() error {
 	for {
 		if m.TryLock() {
-			return
+			return nil
 		}
 		select {
 		case <-m.ctx.Done():
-			return
+			return context.DeadlineExceeded
 		default:
 			retryTime := time.Duration(rd.Intn(10)+10) * time.Millisecond
 			time.Sleep(retryTime)
