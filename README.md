@@ -228,16 +228,16 @@ fmt.Println(members)
 members = cache.ZMembersByRank(0, 2, rds.DESC).Val()
 fmt.Println(members)
 // 积分区间内的成员，附带分数 （从小到大）
-items := cache.ZItemsByScore(90, 100, 0, 10, rds.ASC).Val()
+items := cache.ZRangeByScore(90, 100, 0, 10, rds.ASC).Val()
 fmt.Println(items)
 // 积分区间内的成员，附带分数 （从小到大）
-items = cache.ZItemsByScore(90, 100, 0, 10, rds.DESC).Val()
+items = cache.ZRangeByScore(90, 100, 0, 10, rds.DESC).Val()
 fmt.Println(items)
 // 排名区间内的成员，附带分数 （从小到大）
-items = cache.ZItemsByRank(0, 2, rds.ASC).Val()
+items = cache.ZRangeByRank(0, 2, rds.ASC).Val()
 fmt.Println(items)
 // 排名区间内的成员，附带分数 （从小到大）
-items = cache.ZItemsByRank(0, 2, rds.DESC).Val()
+items = cache.ZRangeByRank(0, 2, rds.DESC).Val()
 fmt.Println(items)
 
 // 移除排名区间内的成员 (移除排名第二的，即B)

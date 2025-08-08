@@ -4,13 +4,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type Order string
+type order string
 
 const (
 	Inf          = "+inf"
 	NegInf       = "-inf"
-	ASC    Order = "ASC"
-	DESC   Order = "DESC"
+	ASC    order = "ASC"
+	DESC   order = "DESC"
 )
 
 type SortedSet[M Ordered] struct {
@@ -69,7 +69,7 @@ func (s *SortedSet[M]) ZIncrBy(member M, incr float64) *FloatCmd {
 }
 
 // 按照积分获取：成员
-func (s *SortedSet[M]) ZMembersByScore(min, max float64, offset, limit int64, order Order) *SliceCmd[M] {
+func (s *SortedSet[M]) ZMembersByScore(min, max float64, offset, limit int64, order order) *SliceCmd[M] {
 	by := &redis.ZRangeBy{
 		Min:    toString(min),
 		Max:    toString(max),
@@ -86,8 +86,8 @@ func (s *SortedSet[M]) ZMembersByScore(min, max float64, offset, limit int64, or
 	return &SliceCmd[M]{cmd: cmd}
 }
 
-// 按照积分获取：成员
-func (s *SortedSet[M]) ZMembersByRank(start, stop int64, order Order) *SliceCmd[M] {
+// 按照排名获取：成员
+func (s *SortedSet[M]) ZMembersByRank(start, stop int64, order order) *SliceCmd[M] {
 	var cmd *redis.StringSliceCmd
 	if order == ASC {
 		cmd = s.db().ZRange(s.ctx, s.key, start, stop)
@@ -98,8 +98,8 @@ func (s *SortedSet[M]) ZMembersByRank(start, stop int64, order Order) *SliceCmd[
 	return &SliceCmd[M]{cmd: cmd}
 }
 
-// 按照积分获取：成员+积分
-func (s *SortedSet[M]) ZItemsByScore(min, max float64, offset, limit int64, order Order) *ZSliceCmd[M] {
+// 按照积分获取：成员和积分
+func (s *SortedSet[M]) ZRangeByScore(min, max float64, offset, limit int64, order order) *ZSliceCmd[M] {
 	by := &redis.ZRangeBy{
 		Min:    toString(min),
 		Max:    toString(max),
@@ -116,8 +116,8 @@ func (s *SortedSet[M]) ZItemsByScore(min, max float64, offset, limit int64, orde
 	return &ZSliceCmd[M]{cmd: cmd}
 }
 
-// 按照积分获取：成员+积分
-func (s *SortedSet[M]) ZItemsByRank(start, stop int64, order Order) *ZSliceCmd[M] {
+// 按照排名获取：成员和积分
+func (s *SortedSet[M]) ZRangeByRank(start, stop int64, order order) *ZSliceCmd[M] {
 	var cmd *redis.ZSliceCmd
 	if order == ASC {
 		cmd = s.db().ZRangeWithScores(s.ctx, s.key, start, stop)
@@ -127,9 +127,6 @@ func (s *SortedSet[M]) ZItemsByRank(start, stop int64, order Order) *ZSliceCmd[M
 	s.done(cmd)
 	return &ZSliceCmd[M]{cmd: cmd}
 }
-
-// 迭代
-// func (s *SortedSet[M]) ZScan(cursor uint64, match string, count int64)
 
 // 移除成员
 func (s *SortedSet[M]) ZRem(members ...M) *IntCmd {
