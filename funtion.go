@@ -123,10 +123,10 @@ func stringsToSlice[E Ordered](input []string) []E {
 }
 
 func toJSON(data any) string {
-	b, err := json.Marshal(data)
-	if err != nil {
-		return ""
+	if data == nil {
+		return "null"
 	}
+	b, _ := json.Marshal(data)
 	return string(b)
 }
 

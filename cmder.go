@@ -142,10 +142,19 @@ func (c *StringJSONCmd[E]) Val() *E {
 		return nil
 	}
 
+	cmd, ok := c.cmd.(*redis.StringCmd)
+	if !ok {
+		return nil
+	}
+
+	if len(cmd.Val()) == 0 || cmd.Val() == "null" {
+		return nil
+	}
+
 	var data E
-	switch cmd := c.cmd.(type) {
-	case *redis.StringCmd:
-		json.Unmarshal([]byte(cmd.Val()), &data)
+	err := json.Unmarshal([]byte(cmd.Val()), &data)
+	if err != nil {
+		return nil
 	}
 
 	return &data
@@ -158,8 +167,11 @@ func (c *StringJSONCmd[E]) Err() error {
 	return c.cmd.Err()
 }
 
-func (c *StringJSONCmd[E]) Result() (*E, error) {
-	return c.Val(), c.Err()
+func (c *StringJSONCmd[E]) Result() (data *E, exists bool, err error) {
+	data = c.Val()
+	exists = c.cmd.Err() == nil
+	err = c.Err()
+	return
 }
 
 type DurationCmd struct {
