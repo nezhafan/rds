@@ -340,8 +340,8 @@ var cmd1 Cmder[map[string]int]
 var cmd2 Cmder[time.Duration]
 
 err := TxPipelined(context.Background(), func(p redis.Pipeliner) {
-  // 需要手动 withpipe
-  cache := NewHashMap[int]("test_pipe", WithPipe(p))
+  // 需要手动 WithCmdable 
+  cache := NewHashMap[int]("test_pipe").WithCmdable(p)
   // 此时命令不会真正去发送给redis-server
   cache.HSet("a", 1)
   cache.HSet("b", 2)
