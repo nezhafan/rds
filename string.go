@@ -1,13 +1,16 @@
 package rds
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type String struct {
 	base
 }
 
-func NewString(key string, ops ...Option) *String {
-	return &String{base: newBase(key, ops...)}
+func NewString(ctx context.Context, key string) *String {
+	return &String{base: NewBase(ctx, key)}
 }
 
 func (s *String) Set(val string, exp time.Duration) *BoolCmd {
@@ -26,4 +29,10 @@ func (s *String) Get() *StringCmd[string] {
 	cmd := s.db().Get(s.ctx, s.key)
 	s.done(cmd)
 	return &StringCmd[string]{cmd: cmd}
+}
+
+func (s *String) WithCmdable(cmdable Cmdable) *String {
+	b := s.base
+	b.cmdable = cmdable
+	return &String{base: b}
 }

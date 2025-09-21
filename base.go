@@ -9,33 +9,29 @@ import (
 )
 
 type base struct {
-	key  string
-	ctx  context.Context
-	pipe redis.Pipeliner
+	key     string
+	ctx     context.Context
+	cmdable Cmdable
 }
 
-func newBase(key string, ops ...Option) (b base) {
-	b.ctx = context.Background()
-	if len(allKeyPrefix) == 0 {
-		b.key = key
-	} else {
-		b.key = allKeyPrefix + ":" + key
+func NewBase(ctx context.Context, key string) (b base) {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	for _, op := range ops {
-		op(&b)
-	}
+	b.ctx = ctx
+	b.key = key
 	return
-}
-
-func (b *base) db() Cmdable {
-	if b.pipe != nil {
-		return b.pipe
-	}
-	return DB()
 }
 
 func (b *base) Key() string {
 	return b.key
+}
+
+func (b *base) db() Cmdable {
+	if b.cmdable != nil {
+		return b.cmdable
+	}
+	return DB()
 }
 
 func (b *base) Expire(exp time.Duration) *BoolCmd {
@@ -68,20 +64,6 @@ func (b *base) TTL() *DurationCmd {
 	return &DurationCmd{cmd: cmd}
 }
 
-type Option func(b *base)
-
-func WithContext(ctx context.Context) Option {
-	return func(b *base) {
-		b.ctx = ctx
-	}
-}
-
-func WithPipe(pipe redis.Pipeliner) Option {
-	return func(b *base) {
-		b.pipe = pipe
-	}
-}
-
 func (b *base) done(cmd redis.Cmder) {
 	// 打印命令
 	if debugMode == ModeCommand {
@@ -89,5 +71,4 @@ func (b *base) done(cmd redis.Cmder) {
 	} else if debugMode == ModeFull {
 		fmt.Println(cmd.String())
 	}
-
 }

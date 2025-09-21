@@ -1,11 +1,16 @@
 package rds
 
-type List[E Ordered] struct {
+import (
+	"cmp"
+	"context"
+)
+
+type List[E cmp.Ordered] struct {
 	base
 }
 
-func NewList[E Ordered](key string, ops ...Option) *List[E] {
-	return &List[E]{base: newBase(key, ops...)}
+func NewList[E cmp.Ordered](ctx context.Context, key string) *List[E] {
+	return &List[E]{base: NewBase(ctx, key)}
 }
 
 // 左入。 返回list新长度
@@ -78,4 +83,10 @@ func (l *List[E]) LTrim(start, stop int64) *BoolCmd {
 	cmd := l.db().LTrim(l.ctx, l.key, start, stop)
 	l.done(cmd)
 	return &BoolCmd{cmd: cmd}
+}
+
+func (l *List[E]) WithCmdable(cmdable Cmdable) *List[E] {
+	b := l.base
+	b.cmdable = cmdable
+	return &List[E]{base: b}
 }

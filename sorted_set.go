@@ -1,33 +1,32 @@
 package rds
 
 import (
+	"cmp"
+	"context"
+
 	"github.com/redis/go-redis/v9"
 )
 
-type order string
-
 const (
-	Inf          = "+inf"
-	NegInf       = "-inf"
-	ASC    order = "ASC"
-	DESC   order = "DESC"
+	Inf    = "+inf"
+	NegInf = "-inf"
 )
 
-type SortedSet[M Ordered] struct {
+type SortedSet[E cmp.Ordered] struct {
 	base
 }
 
-type Z[M Ordered] struct {
+type Z[E cmp.Ordered] struct {
 	Score  float64
-	Member M
+	Member E
 }
 
-func NewSortedSet[M Ordered](key string, ops ...Option) *SortedSet[M] {
-	return &SortedSet[M]{base: newBase(key, ops...)}
+func NewSortedSet[E cmp.Ordered](ctx context.Context, key string) *SortedSet[E] {
+	return &SortedSet[E]{base: NewBase(ctx, key)}
 }
 
 // 添加
-func (s *SortedSet[M]) ZAdd(zs map[M]float64) *IntCmd {
+func (s *SortedSet[E]) ZAdd(zs map[E]float64) *IntCmd {
 	args := make([]any, 0, len(zs)*2+3)
 	args = append(args, "zadd", s.key, "ch")
 	for member, score := range zs {
@@ -39,14 +38,14 @@ func (s *SortedSet[M]) ZAdd(zs map[M]float64) *IntCmd {
 }
 
 // 所有成员数
-func (s *SortedSet[M]) ZCard() *IntCmd {
+func (s *SortedSet[E]) ZCard() *IntCmd {
 	cmd := s.db().ZCard(s.ctx, s.key)
 	s.done(cmd)
 	return &IntCmd{cmd: cmd}
 }
 
 // 积分区间内的成员数
-func (s *SortedSet[M]) ZCount(min, max float64) *IntCmd {
+func (s *SortedSet[E]) ZCount(min, max float64) *IntCmd {
 	minS := toString(min)
 	maxS := toString(max)
 	cmd := s.db().ZCount(s.ctx, s.key, minS, maxS)
@@ -55,21 +54,21 @@ func (s *SortedSet[M]) ZCount(min, max float64) *IntCmd {
 }
 
 // 获取分数
-func (s *SortedSet[M]) ZScore(member M) *FloatCmd {
+func (s *SortedSet[E]) ZScore(member E) *FloatCmd {
 	cmd := s.db().ZScore(s.ctx, s.key, toString(member))
 	s.done(cmd)
 	return &FloatCmd{cmd: cmd}
 }
 
 // 增加分数
-func (s *SortedSet[M]) ZIncrBy(member M, incr float64) *FloatCmd {
+func (s *SortedSet[E]) ZIncrBy(member E, incr float64) *FloatCmd {
 	cmd := s.db().ZIncrBy(s.ctx, s.key, float64(incr), toString(member))
 	s.done(cmd)
 	return &FloatCmd{cmd: cmd}
 }
 
 // 按照积分获取：成员
-func (s *SortedSet[M]) ZMembersByScore(min, max float64, offset, limit int64, order order) *SliceCmd[M] {
+func (s *SortedSet[E]) ZMembersByScore(min, max float64, offset, limit int64, asc bool) *SliceCmd[E] {
 	by := &redis.ZRangeBy{
 		Min:    toString(min),
 		Max:    toString(max),
@@ -77,29 +76,29 @@ func (s *SortedSet[M]) ZMembersByScore(min, max float64, offset, limit int64, or
 		Count:  limit,
 	}
 	var cmd *redis.StringSliceCmd
-	if order == ASC {
+	if asc {
 		cmd = s.db().ZRangeByScore(s.ctx, s.key, by)
-	} else if order == DESC {
+	} else {
 		cmd = s.db().ZRevRangeByScore(s.ctx, s.key, by)
 	}
 	s.done(cmd)
-	return &SliceCmd[M]{cmd: cmd}
+	return &SliceCmd[E]{cmd: cmd}
 }
 
 // 按照排名获取：成员
-func (s *SortedSet[M]) ZMembersByRank(start, stop int64, order order) *SliceCmd[M] {
+func (s *SortedSet[E]) ZMembersByRank(start, stop int64, asc bool) *SliceCmd[E] {
 	var cmd *redis.StringSliceCmd
-	if order == ASC {
+	if asc {
 		cmd = s.db().ZRange(s.ctx, s.key, start, stop)
-	} else if order == DESC {
+	} else {
 		cmd = s.db().ZRevRange(s.ctx, s.key, start, stop)
 	}
 	s.done(cmd)
-	return &SliceCmd[M]{cmd: cmd}
+	return &SliceCmd[E]{cmd: cmd}
 }
 
 // 按照积分获取：成员和积分
-func (s *SortedSet[M]) ZRangeByScore(min, max float64, offset, limit int64, order order) *ZSliceCmd[M] {
+func (s *SortedSet[E]) ZRangeByScore(min, max float64, offset, limit int64, asc bool) *ZSliceCmd[E] {
 	by := &redis.ZRangeBy{
 		Min:    toString(min),
 		Max:    toString(max),
@@ -107,29 +106,29 @@ func (s *SortedSet[M]) ZRangeByScore(min, max float64, offset, limit int64, orde
 		Count:  limit,
 	}
 	var cmd *redis.ZSliceCmd
-	if order == ASC {
+	if asc {
 		cmd = s.db().ZRangeByScoreWithScores(s.ctx, s.key, by)
-	} else if order == DESC {
+	} else {
 		cmd = s.db().ZRevRangeByScoreWithScores(s.ctx, s.key, by)
 	}
 	s.done(cmd)
-	return &ZSliceCmd[M]{cmd: cmd}
+	return &ZSliceCmd[E]{cmd: cmd}
 }
 
 // 按照排名获取：成员和积分
-func (s *SortedSet[M]) ZRangeByRank(start, stop int64, order order) *ZSliceCmd[M] {
+func (s *SortedSet[E]) ZRangeByRank(start, stop int64, asc bool) *ZSliceCmd[E] {
 	var cmd *redis.ZSliceCmd
-	if order == ASC {
+	if asc {
 		cmd = s.db().ZRangeWithScores(s.ctx, s.key, start, stop)
-	} else if order == DESC {
+	} else {
 		cmd = s.db().ZRevRangeWithScores(s.ctx, s.key, start, stop)
 	}
 	s.done(cmd)
-	return &ZSliceCmd[M]{cmd: cmd}
+	return &ZSliceCmd[E]{cmd: cmd}
 }
 
 // 移除成员
-func (s *SortedSet[M]) ZRem(members ...M) *IntCmd {
+func (s *SortedSet[E]) ZRem(members ...E) *IntCmd {
 	args := toAnys(members)
 	cmd := s.db().ZRem(s.ctx, s.key, args...)
 	s.done(cmd)
@@ -137,7 +136,7 @@ func (s *SortedSet[M]) ZRem(members ...M) *IntCmd {
 }
 
 // 移除积分区间内的成员
-func (s *SortedSet[M]) ZRemByScore(min, max float64) *IntCmd {
+func (s *SortedSet[E]) ZRemByScore(min, max float64) *IntCmd {
 	minS := toString(min)
 	maxS := toString(max)
 	cmd := s.db().ZRemRangeByScore(s.ctx, s.key, minS, maxS)
@@ -146,8 +145,14 @@ func (s *SortedSet[M]) ZRemByScore(min, max float64) *IntCmd {
 }
 
 // 移除排名区间内的成员
-func (s *SortedSet[M]) ZRemByRank(start, stop int64) *IntCmd {
+func (s *SortedSet[E]) ZRemByRank(start, stop int64) *IntCmd {
 	cmd := s.db().ZRemRangeByRank(s.ctx, s.key, start, stop)
 	s.done(cmd)
 	return &IntCmd{cmd: cmd}
+}
+
+func (s *SortedSet[E]) WithCmdable(cmdable Cmdable) *SortedSet[E] {
+	b := s.base
+	b.cmdable = cmdable
+	return &SortedSet[E]{base: b}
 }

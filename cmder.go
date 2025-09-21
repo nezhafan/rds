@@ -1,6 +1,7 @@
 package rds
 
 import (
+	"cmp"
 	"encoding/json"
 	"reflect"
 	"strconv"
@@ -15,7 +16,7 @@ type Cmder[E any] interface {
 	Result() (E, error)
 }
 
-type MapCmd[E Ordered] struct {
+type MapCmd[E cmp.Ordered] struct {
 	cmd    redis.Cmder
 	fields []string
 }
@@ -99,7 +100,7 @@ func (c *BoolCmd) Result() (bool, error) {
 	return c.Val(), c.Err()
 }
 
-type StringCmd[E Ordered] struct {
+type StringCmd[E cmp.Ordered] struct {
 	cmd redis.Cmder
 }
 
@@ -241,7 +242,7 @@ func (c *FloatCmd) Result() (float64, error) {
 	return c.Val(), c.Err()
 }
 
-type SliceCmd[E Ordered] struct {
+type SliceCmd[E cmp.Ordered] struct {
 	cmd *redis.StringSliceCmd
 }
 
@@ -257,7 +258,7 @@ func (c *SliceCmd[E]) Result() (list []E, err error) {
 	return c.Val(), c.cmd.Err()
 }
 
-type AnyCmd[E Ordered] struct {
+type AnyCmd[E cmp.Ordered] struct {
 	cmd *redis.StringCmd
 }
 
@@ -273,7 +274,7 @@ func (c *AnyCmd[E]) Result() (E, error) {
 	return c.Val(), c.cmd.Err()
 }
 
-type ZSliceCmd[M Ordered] struct {
+type ZSliceCmd[M cmp.Ordered] struct {
 	cmd *redis.ZSliceCmd
 }
 

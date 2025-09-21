@@ -1,6 +1,8 @@
 package rds
 
 import (
+	"context"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -11,8 +13,8 @@ type Geo struct {
 	base
 }
 
-func NewGeo(key string, ops ...Option) *Geo {
-	return &Geo{base: newBase(key, ops...)}
+func NewGeo(ctx context.Context, key string) *Geo {
+	return &Geo{base: NewBase(ctx, key)}
 }
 
 // 添加经纬度坐标。 https://redis.io/docs/latest/commands/geoadd/

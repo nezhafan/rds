@@ -1,31 +1,63 @@
 ### 说明
 - 本项目是对 `github.com/redis/go-redis/v9` 的再封装。
 
-### 特性
-- 用结构体分离了各数据类型。使用时更加清晰和提示友好，同时也预防了类型冲突错误。
-- 类型拆分
-  - 将 `Hash` 拆分为 `HashMap` 和 `HashStruct` 两种类型。 `HashMap` 使用于存储一类KV，其中V为`string、int64、float64`的泛型，取出时为 `map[string]E`;`HashStruct` 适用于存储对象，取出时为 `struct`。(`HashStruct` 要设定 `redis:"xxx"`标签)
-  - 从 `String` 类型中拆分出了 `StringInt` 和 `StringFloat` 类型，用来做数字存储 `incr` 相关操作。
-  - 从 `String` 类型中拆分出了 `StringJSON` 类型做对象存储。(优先推荐 `HashStruct` 类型做对象存储)
-  - 从 `String` 类型中拆分出了 `Mutex` 分布式锁
-- 泛型支持
-  - `HashStruct` 和 `StringJSON` 支持自定义结构体，在存储和取出时自动转换。
-  - `Set`、`List`、`SortedSet` 支持区分存储字符串还是数值，不会混淆。
-  - `Bitmap` 位图，将0和1转为true和false
-- 简化参数
+### 特点
+- 按数据类型分离结构体。使用时更加清晰和提示友好，同时也预防了类型冲突错误。
+  - 所有类型都嵌入 `base` 结构体，继承 `Exists`、`Del`、`TTL`、`Expire`、`ExpireAt` 公共方法。
+  - `string` 类型。
+    - `String` 存储字符串，支持 `Get`、`Set`、`SetNX` 方法。
+    - `StringInt` 存储整数，支持 `Get`、`Set`、`SetNX`、`IncrBy` 方法。
+    - `StringFloat` 存储浮点数，支持 `Get`、`Set`、`SetNX`、`IncrBy` 方法。
+    - `StringJSON[T]` 存储各种可`json`化的对象，包含`struct`、`slice`、`map`，支持 `Get`、`Set`、`SetNX` 方法。
+    - `Mutex` 分布式锁，支持 `Lock`、`Unlock`、`TryLock` 方法。 `Lock`时会阻塞，每10ms-20ms重试获取锁，直到超过最大事件或上下文时间耗尽。
+  - `hash` 类型。 
+    - `HashStruct` 适用于存储对象信息，数据表的行。
+    - `HashMap` 适用于存储一类键值对，如统一记录所有用户某个事的完成时间，需要同时取多个用户的该值。
+  - `list` 类型。`List[T]` 队列，自定义元素类型。
+  - `set` 类型。 `Set[T]` 去重，自定义元素类型。
+  - `sorted set` 类型。 `SortedSet[T]` 做排序，自定义 `member` 类型。
+  - `bitmap` 类型。 实际底层还是 `string` 类型，用做大批量数字的布尔值标记。
+  - `geo` 类型。 `Geo` 做地理位置的标记和距离计算。
+  - `hyperloglog` 类型。 `NewHyperLogLog` 做基数统计，非常节省存储，但存在0.81%误差。
+- 参数/返回
   - 在第一次 new 结构体的时候传参 `key`，之后就不用每次传 `key`，很多类型可以直接声明在函数外。
-  - 省略了 `context.Context` 参数。 1通过可选参数`WithContext`设置，2默认使用连接时设置的超时
-  - 可选参数`WithPipe`设置管道，使用方式见下例。
-- 优化返回。对 `redis.Nil` 处理，用以区分空字符串和不存在，涉及这个的会返回3个值：val、exists、error
-- 全局参数
-  - 支持debug模式`SetDebug`，会将执行的命令和返回内容清晰的打印
-  - 增加了自动设置前缀方式 `SetPrefix()`
+  - 使用泛型对返回值进行自动转换。
+  - 对于`string` ，从 `error` 中提取出来 `redis.Nil`，会返回3个值：val、exists、error 用以区分空字符串和不存在的两种情况。
+- 辅助方法
+  - 连接。可以使用这里的简易 `Connect`方法，也支持 `SetDB()` 自己实现连接后赋值进来。
+  - DEBUG。支持`SetDebug`模式，会将执行的命令和返回内容清晰地打印，可在本地环境打开。
+  - 事务/管道。 支持 `TxPipelined`事务 和 `TxPipelined` 普通管道
+  
 
 ### 用法举例
-##### 1. String 
+
+##### 1. 连接 
+```go
+ctx := context.Background()
+
+// 简单连接
+if err := rds.Connect("127.0.0.1:6379", "password", 0); err != nil {
+  panic(err)
+}
+
+// 自定义连接
+options := &redis.Options{
+  Addr:     "",
+  Password: "",
+  DB:       0,
+}
+if err := rds.ConnectByOption(options); err != nil {
+  panic(err)
+}
+
+// 使用已有连接，把本包当作扩展。
+rds.SetDB(db Cmdable)
+```
+
+##### 2. String 
 - 存储值
 ```go
-cache := rds.NewString("string")
+cache := rds.NewString(ctx, "string")
 // 设定值，必须设置过期时间（永久有效可以使用rds.KeepTTL）
 cache.Set("aaa", time.Minute)
 // 当你防重复设置时，可以这样做
@@ -41,7 +73,7 @@ fmt.Println(val, exists, err)
 ```
 - 存储整型
 ```go
-cache := rds.NewStringInt("string_int")
+cache := rds.NewStringInt(ctx, "string_int")
 // 设定值，必须设置过期时间（永久有效可以使用rds.KeepTTL）
 cache.Set(100, time.Minute)
 // 当你防重复设置时，可以这样做
@@ -60,7 +92,7 @@ fmt.Println(val)
 ```
 - 存储浮点数
 ```go
-cache := rds.NewStringFloat("string_float")
+cache := rds.NewStringFloat(ctx, "string_float")
 // 设定值，必须设置过期时间（永久有效可以使用rds.KeepTTL）
 cache.Set(0.3, time.Minute)
 // 当你防重复设置时，可以这样做
@@ -83,19 +115,21 @@ type Config struct {
   App  string `json:"app"`
   Host string `json:"host"`
 }
-cache := rds.NewStringJSON[Config]("string_json")
+cache := rds.NewStringJSON[Config](ctx, "string_json")
 // 设定值，必须设置过期时间。（永久有效可以使用rds.KeepTTL）
 cache.Set(&Config{App: "app", Host: "https://cc.com"}, time.Minute)
 // 当你防重复设置时，可以这样做
 if !cache.SetNX(&Config{}, time.Minute).Val() {
   fmt.Println("重复设置")
 }
-// 获取值. （不存在可以直接判断指针是否为nil）
-val, err := cache.Get().Result()
-fmt.Println(val, err)
+// 获取值. 
+// 无缓存时， val是nil， exists是false
+// 有缓存但是缓存为空或null时， val是nil， exists是true
+val, exists, err := cache.Get().Result()
+fmt.Println(val,exists, err)
 ```
 
-##### 2. Hash 
+##### 3. Hash 
 - 存储对象，数据库的单条记录
 ```go
 // 注意hash存储和获取对象时，需要设置redis:"xxx"标签
@@ -166,7 +200,7 @@ val = cache.HIncrByInt("A", 10).Val()
 fmt.Println(val)
 ```
 
-##### 3. Set 
+##### 4. Set 
 ```go
 cache := NewSet[int64]("set")
 // 过期
@@ -190,10 +224,10 @@ all := cache.SMembers().Val()
 fmt.Println(all)
 ```
 
-##### 4. SortedSet
+##### 5. SortedSet
 ```go
 // score只能是数字， member处理为数字或字符串
-cache := rds.NewSortedSet[string]("sorted_set")
+cache := rds.NewSortedSet[string](ctx, "sorted_set")
 // 过期
 cache.Expire(time.Minute)
 // 添加。 member不可以重复，score可以重复
@@ -248,9 +282,9 @@ cache.ZRem("D")
 cache.ZRemByScore(0, 89)
 ```
 
-##### 5. List
+##### 6. List
 ```go
-cache := rds.NewList[int]("list")
+cache := rds.NewList[int](ctx, "list")
 // 过期
 cache.Expire(time.Minute)
 // 插入顺序 1、2、3、4、5
@@ -280,10 +314,10 @@ all = cache.LRange(0, -1).Val()
 fmt.Println(all)
 ```
 
-##### 6. Bitmap
+##### 7. Bitmap
 ```go
 var point uint32 = 999
-cache := rds.NewBitmap("bitmap")
+cache := rds.NewBitmap(ctx, "bitmap")
 // 过期
 cache.Expire(time.Minute)
 // 第一次设置 （返回未设置之前的状态false）
@@ -300,7 +334,7 @@ n := cache.BitCount(0, int64(point)).Val()
 fmt.Println(n)
 ```
 
-#### 7.事务管道
+#### 8.事务管道
 ```go
 var cmd1 Cmder[map[string]int]
 var cmd2 Cmder[time.Duration]
@@ -332,7 +366,7 @@ ttl := cmd2.Val()
 fmt.Println(result, ttl)
 ```
 
-#### 8.分布式锁
+#### 9.分布式锁
 ```go
 // 方式一：加锁。若失败则阻塞且不断重试
 mu := rds.NewMutex(ctx, "1")

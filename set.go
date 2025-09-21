@@ -1,12 +1,17 @@
 package rds
 
-type Set[E Ordered] struct {
+import (
+	"cmp"
+	"context"
+)
+
+type Set[E cmp.Ordered] struct {
 	base
 }
 
 // Set 去重
-func NewSet[E Ordered](key string, ops ...Option) *Set[E] {
-	return &Set[E]{base: newBase(key, ops...)}
+func NewSet[E cmp.Ordered](ctx context.Context, key string) *Set[E] {
+	return &Set[E]{base: NewBase(ctx, key)}
 }
 
 // 添加成员。 返回添加成功数
@@ -44,4 +49,10 @@ func (s *Set[E]) SRem(members ...E) *IntCmd {
 	cmd := s.db().SRem(s.ctx, s.key, args...)
 	s.done(cmd)
 	return &IntCmd{cmd: cmd}
+}
+
+func (s *Set[E]) WithCmdable(cmdable Cmdable) *Set[E] {
+	b := s.base
+	b.cmdable = cmdable
+	return &Set[E]{base: b}
 }

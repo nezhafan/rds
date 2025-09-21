@@ -1,6 +1,7 @@
 package rds
 
 import (
+	"context"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -10,66 +11,68 @@ type HashStruct[E any] struct {
 	base
 }
 
-func NewHashStruct[E any](key string, ops ...Option) *HashStruct[E] {
-	return &HashStruct[E]{base: newBase(key, ops...)}
+func NewHashStruct[E any](ctx context.Context, key string) *HashStruct[E] {
+	return &HashStruct[E]{base: NewBase(ctx, key)}
 }
 
-func (b *HashStruct[E]) SubKey(subkey string) *HashStruct[E] {
-	return NewHashStruct[E](b.key + ":" + subkey)
-}
-
-func (b *HashStruct[E]) SubID(subid string) *HashStruct[E] {
-	return NewHashStruct[E](b.key + ":" + subid)
+func (h *HashStruct[E]) SubKey(ctx context.Context, subkey string) *HashStruct[E] {
+	return NewHashStruct[E](ctx, h.key+":"+subkey)
 }
 
 // 返回该字段是否为新增字段（修改不算新增）
-func (b *HashStruct[E]) HSet(field string, value any) *BoolCmd {
-	cmd := b.db().HSet(b.ctx, b.key, field, value)
-	b.done(cmd)
+func (h *HashStruct[E]) HSet(field string, value any) *BoolCmd {
+	cmd := h.db().HSet(h.ctx, h.key, field, value)
+	h.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
 // 强制设置过期时间
-func (b *HashStruct[E]) HMSet(obj *E, exp time.Duration) *BoolCmd {
-	cmder := b.db()
+func (h *HashStruct[E]) HMSet(obj *E, exp time.Duration) *BoolCmd {
+	cmder := h.db()
 	var cmd redis.Cmder
 	if _, ok := cmder.(redis.Pipeliner); ok {
-		cmd = cmder.HSet(b.ctx, b.key, obj)
-		cmder.Expire(b.ctx, b.key, exp)
+		cmd = cmder.HSet(h.ctx, h.key, obj)
+		cmder.Expire(h.ctx, h.key, exp)
 	} else {
 		pipe := cmder.Pipeline()
-		cmd = pipe.HSet(b.ctx, b.key, obj)
-		pipe.Expire(b.ctx, b.key, exp)
-		pipe.Exec(b.ctx)
+		cmd = pipe.HSet(h.ctx, h.key, obj)
+		pipe.Expire(h.ctx, h.key, exp)
+		pipe.Exec(h.ctx)
 	}
-	b.done(cmd)
+	h.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
-func (b *HashStruct[E]) HMGet(fields ...string) *StructCmd[E] {
+func (h *HashStruct[E]) HMGet(fields ...string) *StructCmd[E] {
 	if len(fields) == 0 {
-		return b.HGetAll()
+		return h.HGetAll()
 	}
-	cmd := b.db().HMGet(b.ctx, b.key, fields...)
-	b.done(cmd)
+	cmd := h.db().HMGet(h.ctx, h.key, fields...)
+	h.done(cmd)
 	return &StructCmd[E]{cmd: cmd, fields: fields}
 }
 
-func (b *HashStruct[E]) HGetAll() *StructCmd[E] {
-	cmd := b.db().HGetAll(b.ctx, b.key)
-	b.done(cmd)
+func (h *HashStruct[E]) HGetAll() *StructCmd[E] {
+	cmd := h.db().HGetAll(h.ctx, h.key)
+	h.done(cmd)
 	return &StructCmd[E]{cmd: cmd}
 }
 
 // 返回删除成功数
-func (b *HashStruct[E]) HDel(fields ...string) *IntCmd {
-	cmd := b.db().HDel(b.ctx, b.key, fields...)
-	b.done(cmd)
+func (h *HashStruct[E]) HDel(fields ...string) *IntCmd {
+	cmd := h.db().HDel(h.ctx, h.key, fields...)
+	h.done(cmd)
 	return &IntCmd{cmd: cmd}
 }
 
-func (b *HashStruct[E]) HExists(field string) *BoolCmd {
-	cmd := b.db().HExists(b.ctx, b.key, field)
-	b.done(cmd)
+func (h *HashStruct[E]) HExists(field string) *BoolCmd {
+	cmd := h.db().HExists(h.ctx, h.key, field)
+	h.done(cmd)
 	return &BoolCmd{cmd: cmd}
+}
+
+func (h *HashStruct[E]) WithCmdable(cmdable Cmdable) *HashStruct[E] {
+	b := h.base
+	h.cmdable = cmdable
+	return &HashStruct[E]{base: b}
 }

@@ -1,13 +1,16 @@
 package rds
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type StringJSON[E any] struct {
 	base
 }
 
-func NewStringJSON[E any](key string, ops ...Option) *StringJSON[E] {
-	return &StringJSON[E]{base: newBase(key, ops...)}
+func NewStringJSON[E any](ctx context.Context, key string) *StringJSON[E] {
+	return &StringJSON[E]{base: NewBase(ctx, key)}
 }
 
 func (s *StringJSON[E]) Set(val *E, exp time.Duration) *BoolCmd {
@@ -26,4 +29,10 @@ func (s *StringJSON[E]) Get() *StringJSONCmd[E] {
 	cmd := s.db().Get(s.ctx, s.key)
 	s.done(cmd)
 	return &StringJSONCmd[E]{cmd: cmd}
+}
+
+func (s *StringJSON[E]) WithCmdable(cmdable Cmdable) *StringJSON[E] {
+	b := s.base
+	b.cmdable = cmdable
+	return &StringJSON[E]{base: b}
 }

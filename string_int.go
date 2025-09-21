@@ -1,13 +1,16 @@
 package rds
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 type StringInt struct {
 	base
 }
 
-func NewStringInt(key string, ops ...Option) *StringInt {
-	return &StringInt{base: newBase(key, ops...)}
+func NewStringInt(ctx context.Context, key string) *StringInt {
+	return &StringInt{base: NewBase(ctx, key)}
 }
 
 func (s *StringInt) Set(val int64, exp time.Duration) *BoolCmd {
@@ -32,4 +35,10 @@ func (s *StringInt) IncrBy(step int64) *StringCmd[int64] {
 	cmd := s.db().IncrBy(s.ctx, s.key, step)
 	s.done(cmd)
 	return &StringCmd[int64]{cmd: cmd}
+}
+
+func (s *StringInt) WithCmdable(cmdable Cmdable) *StringInt {
+	b := s.base
+	b.cmdable = cmdable
+	return &StringInt{base: b}
 }

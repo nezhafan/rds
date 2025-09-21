@@ -1,6 +1,7 @@
 package rds
 
 import (
+	"cmp"
 	"encoding/json"
 	"reflect"
 	"strconv"
@@ -16,7 +17,7 @@ const (
 	KeepTTL = redis.KeepTTL
 
 	// DEBUG 模式
-	ModeClose   Mode = 1 // 不器用
+	ModeClose   Mode = 1 // 不启用
 	ModeCommand Mode = 2 // 打印执行的命令
 	ModeFull    Mode = 3 // 打印执行的命令和返回
 
@@ -25,16 +26,9 @@ const (
 )
 
 var (
-	// 所有key前缀
-	allKeyPrefix = ""
 	// debug模式
 	debugMode = ModeClose
 )
-
-// 设置所有key的前缀
-func SetPrefix(prefix string) {
-	allKeyPrefix = prefix
-}
 
 // 设置DEBUG模式
 func SetDebug(mode Mode) {
@@ -49,7 +43,7 @@ func toAnys[E any](vals []E) []any {
 	return ans
 }
 
-func stringTo[E Ordered](input string) E {
+func stringTo[E cmp.Ordered](input string) E {
 	var zero E
 	rt := reflect.TypeOf(zero)
 	switch rt.Kind() {
@@ -111,7 +105,7 @@ func stringTo[E Ordered](input string) E {
 	return zero
 }
 
-func stringsToSlice[E Ordered](input []string) []E {
+func stringsToSlice[E cmp.Ordered](input []string) []E {
 	if len(input) == 0 {
 		return nil
 	}

@@ -8,28 +8,21 @@ import (
 )
 
 var (
-	// 锁自动释放时间(秒)
-	mutexTimeout = "30"
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 )
 
 type Mutex struct {
-	ctx context.Context
-	key string
+	base
 	id  string
+	exp time.Duration
 }
 
-func NewMutex(ctx context.Context, key string) *Mutex {
-	if len(allKeyPrefix) > 0 {
-		key = allKeyPrefix + ":mutex:" + key
-	} else {
-		key = "mutex:" + key
-	}
+func NewMutex(ctx context.Context, key string, exp time.Duration) *Mutex {
 	return &Mutex{
-		ctx: ctx,
-		key: key,
-		id:  strconv.Itoa(rd.Int()),
+		base: NewBase(ctx, key),
+		id:   strconv.Itoa(int(rd.Int31())),
+		exp:  exp,
 	}
 }
 
@@ -45,7 +38,7 @@ end`
 // 尝试加锁
 func (m *Mutex) TryLock() bool {
 	keys := []string{m.key}
-	resp, err := DB().Eval(m.ctx, lockScript, keys, m.id, mutexTimeout).Result()
+	resp, err := DB().Eval(m.ctx, lockScript, keys, m.id, m.exp/time.Second).Result()
 	return err == nil && resp.(string) == "OK"
 }
 

@@ -1,18 +1,21 @@
 package rds
 
-type bitmap struct {
+import "context"
+
+type Bitmap struct {
 	base
 }
 
 // 位操作，适用于表达二元情况
-// 不支持设置负数，最大uint32，占用512M内存
+// 不支持设置负数，最大uint32
+// 占用内存取决于设置的最大值，1-1千万占用1.2MB，math.MaxUint32最大占用512M内存
 // https://redis.io/docs/latest/commands/setbit/
-func NewBitmap(key string, ops ...Option) bitmap {
-	return bitmap{base: newBase(key, ops...)}
+func NewBitmap(ctx context.Context, key string) Bitmap {
+	return Bitmap{base: NewBase(ctx, key)}
 }
 
-// 设置位，返回设置之前的状态
-func (b *bitmap) SetBit(offset uint32, ok bool) *BoolCmd {
+// 设置位，返回设置之前该位的布尔值
+func (b *Bitmap) SetBit(offset uint32, ok bool) *BoolCmd {
 	var v int
 	if ok {
 		v = 1
@@ -23,14 +26,14 @@ func (b *bitmap) SetBit(offset uint32, ok bool) *BoolCmd {
 }
 
 // 获取位状态
-func (b *bitmap) GetBit(offset uint32) *BoolCmd {
+func (b *Bitmap) GetBit(offset uint32) *BoolCmd {
 	cmd := b.db().GetBit(b.ctx, b.key, int64(offset))
 	b.done(cmd)
 	return &BoolCmd{cmd: cmd}
 }
 
 // 获取范围内1的个数
-func (b *bitmap) BitCount(start, end int64) *IntCmd {
+func (b *Bitmap) BitCount(start, end int64) *IntCmd {
 	args := []any{"bitcount", b.key, start, end, "bit"}
 	cmd := b.db().Do(b.ctx, args...)
 	b.done(cmd)
@@ -38,7 +41,7 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 }
 
 // // 返回第一个0或1的位置
-// func (b *bitmap) BitPos(search int, start, end int64) int64 {
+// func (b *Bitmap) BitPos(search int, start, end int64) int64 {
 // 	if search > 1 {
 // 		search = 1
 // 	}
@@ -51,7 +54,7 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // 合并别的bitmap
 // op: AND OR XOR NOT
 // 如果是临时统计，请给key加上过期时间
-// func (b *bitmap) BitOp(op string, srcKeys ...any) error {
+// func (b *Bitmap) BitOp(op string, srcKeys ...any) error {
 // 	commands := make([]any, 0, len(srcKeys)+3)
 // 	commands = append(commands, "BITOP", op, b.key)
 // 	commands = append(commands, srcKeys...)
@@ -68,9 +71,9 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // bitfield是对bitmap的分段切割，如果用不好，使用NewAutoBitField
 // 用一个bitmap表示多个作用，bitmap如果是对多用户区分二元，bitfield更像对单用户记录多个数字类型字段。
 // https://redis.io/docs/latest/commands/bitfield/
-// func NewBitField(key string, ops ...Option) bitfield {
+// func NewBitField(key string) bitfield {
 // 	return bitfield{
-// 		base: newBase(key, ops...),
+// 		base: NewBase(key),
 // 	}
 // }
 
@@ -124,7 +127,7 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // 		}
 // 	}
 // 	return autobitfield[E]{
-// 		base: newBase(key, ops...),
+// 		base: NewBase(key),
 // 		bits: bits,
 // 	}
 // }
@@ -184,3 +187,9 @@ func (b *bitmap) BitCount(start, end int64) *IntCmd {
 // 	}
 // 	return r, nil
 // }
+
+func (b *Bitmap) WithCmdable(cmdable Cmdable) *Bitmap {
+	bc := b.base
+	bc.cmdable = cmdable
+	return &Bitmap{base: bc}
+}
