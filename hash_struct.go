@@ -71,6 +71,18 @@ func (h *HashStruct[E]) HExists(field string) *BoolCmd {
 	return &BoolCmd{cmd: cmd}
 }
 
+func (h *HashStruct[E]) HIncrBy(field string, incr int64) *IntCmd {
+	cmd := h.db().HIncrBy(h.ctx, h.key, field, incr)
+	h.done(cmd)
+	return &IntCmd{cmd: cmd}
+}
+
+func (h *HashStruct[E]) HIncrByFloat(field string, incr float64) *IntCmd {
+	cmd := h.db().HIncrByFloat(h.ctx, h.key, field, incr)
+	h.done(cmd)
+	return &IntCmd{cmd: cmd}
+}
+
 func (h *HashStruct[E]) WithCmdable(cmdable Cmdable) *HashStruct[E] {
 	b := h.base
 	h.cmdable = cmdable
