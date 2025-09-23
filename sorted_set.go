@@ -54,10 +54,10 @@ func (s *SortedSet[E]) ZCount(min, max float64) *IntCmd {
 }
 
 // 获取排名
-func (s *SortedSet[E]) ZRank(member E) *FloatCmd {
+func (s *SortedSet[E]) ZRank(member E) *IntCmd {
 	cmd := s.db().ZRank(s.ctx, s.key, toString(member))
 	s.done(cmd)
-	return &FloatCmd{cmd: cmd}
+	return &IntCmd{cmd: cmd}
 }
 
 // 获取分数
