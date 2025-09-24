@@ -3,6 +3,7 @@ package rds
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"reflect"
 	"strconv"
 	"time"
@@ -121,7 +122,7 @@ func (c *StringCmd[E]) Val() E {
 }
 
 func (c *StringCmd[E]) Err() error {
-	if c.cmd.Err() == redis.Nil {
+	if errors.Is(c.cmd.Err(), redis.Nil) {
 		return nil
 	}
 	return c.cmd.Err()
@@ -162,7 +163,7 @@ func (c *StringJSONCmd[E]) Val() *E {
 }
 
 func (c *StringJSONCmd[E]) Err() error {
-	if c.cmd.Err() == redis.Nil {
+	if errors.Is(c.cmd.Err(), redis.Nil) {
 		return nil
 	}
 	return c.cmd.Err()
@@ -196,6 +197,9 @@ type IntCmd struct {
 }
 
 func (c *IntCmd) Val() int64 {
+	if c.cmd.Err() != nil {
+		return 0
+	}
 	switch cmd := c.cmd.(type) {
 	case *redis.IntCmd:
 		return cmd.Val()
@@ -211,11 +215,17 @@ func (c *IntCmd) Val() int64 {
 }
 
 func (c *IntCmd) Err() error {
+	if errors.Is(c.cmd.Err(), redis.Nil) {
+		return nil
+	}
 	return c.cmd.Err()
 }
 
-func (c *IntCmd) Result() (int64, error) {
-	return c.Val(), c.Err()
+func (c *IntCmd) Result() (val int64, exists bool, err error) {
+	val = c.Val()
+	exists = c.cmd.Err() == nil
+	err = c.Err()
+	return
 }
 
 type FloatCmd struct {
@@ -223,6 +233,9 @@ type FloatCmd struct {
 }
 
 func (c *FloatCmd) Val() float64 {
+	if c.cmd.Err() != nil {
+		return 0
+	}
 	switch cmd := c.cmd.(type) {
 	case *redis.FloatCmd:
 		return cmd.Val()
@@ -235,11 +248,17 @@ func (c *FloatCmd) Val() float64 {
 }
 
 func (c *FloatCmd) Err() error {
+	if errors.Is(c.cmd.Err(), redis.Nil) {
+		return nil
+	}
 	return c.cmd.Err()
 }
 
-func (c *FloatCmd) Result() (float64, error) {
-	return c.Val(), c.Err()
+func (c *FloatCmd) Result() (val float64, exists bool, err error) {
+	val = c.Val()
+	exists = c.cmd.Err() == nil
+	err = c.Err()
+	return
 }
 
 type SliceCmd[E cmp.Ordered] struct {
