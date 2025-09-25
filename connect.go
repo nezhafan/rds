@@ -2,6 +2,7 @@ package rds
 
 import (
 	"context"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -32,9 +33,12 @@ func SetDB(db Cmdable) {
 // Connect("127.0.0.1:6379", "", 0)
 func Connect(addr string, auth string, db int) error {
 	options := &redis.Options{
-		Addr:     addr,
-		Password: auth,
-		DB:       db,
+		Addr:             addr,
+		Password:         auth,
+		DB:               db,
+		DisableIndentity: true,
+		ReadTimeout:      time.Second * 3,
+		WriteTimeout:     time.Second * 3,
 	}
 	return ConnectByOption(options)
 }

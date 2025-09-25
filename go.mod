@@ -2,7 +2,7 @@ module github.com/nezhafan/rds
 
 go 1.18.0
 
-require github.com/redis/go-redis/v9 v9.14.0
+require github.com/redis/go-redis/v9 v9.7.0
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
