@@ -1,19 +1,18 @@
 package rds
 
 import (
-	"cmp"
 	"context"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-type HashStruct[E cmp.Ordered] struct {
+type HashStruct[E any] struct {
 	base
 }
 
 // 泛型为value元素
-func NewHashStruct[E cmp.Ordered](ctx context.Context, key string) *HashStruct[E] {
+func NewHashStruct[E any](ctx context.Context, key string) *HashStruct[E] {
 	return &HashStruct[E]{base: NewBase(ctx, key)}
 }
 
@@ -43,12 +42,6 @@ func (h *HashStruct[E]) HMSet(obj *E, exp time.Duration) *BoolCmd {
 	}
 	h.done(cmd)
 	return &BoolCmd{cmd: cmd}
-}
-
-func (h *HashStruct[E]) HGet(field string) *StringCmd[E] {
-	cmd := h.db().HGet(h.ctx, h.key, field)
-	h.done(cmd)
-	return &StringCmd[E]{cmd: cmd}
 }
 
 func (h *HashStruct[E]) HMGet(fields ...string) *StructCmd[E] {
