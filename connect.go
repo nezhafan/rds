@@ -28,6 +28,7 @@ func DB() Cmdable {
 
 func SetDB(db Cmdable) {
 	rdb = db
+	initInfo()
 }
 
 // Connect("127.0.0.1:6379", "", 0)
@@ -48,5 +49,6 @@ func ConnectByOption(option *redis.Options) error {
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		return err
 	}
+	initInfo()
 	return nil
 }

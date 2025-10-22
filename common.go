@@ -1,10 +1,10 @@
 package rds
 
 import (
-	"cmp"
-	"encoding/json"
-	"reflect"
+	"context"
 	"strconv"
+	"strings"
+	"sync/atomic"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -15,142 +15,83 @@ const (
 	OK      = "OK"
 	Nil     = redis.Nil
 	KeepTTL = redis.KeepTTL
+)
 
-	// DEBUG 模式
-	ModeClose   Mode = 1 // 不启用
-	ModeCommand Mode = 2 // 打印执行的命令
-	ModeFull    Mode = 3 // 打印执行的命令和返回
-
-	// version74 = "7.4.0"
-	// version80 = "8.0.0"
+const (
+	version74 = "7.4.0"
+	version62 = "6.2.0"
 )
 
 var (
-	// debug模式
-	debugMode = ModeClose
+	// 命令和结果打印
+	cmdHook func(cmd redis.Cmder)
+	// 错误打印
+	errorHook func(err error)
+	// 开发模式
+	isDebugMode atomic.Bool
+	// 所有key加前缀
+	keyPrefix string
+	// 版本号
+	versionCurrent string
+	// 达到 6.2.0 版本
+	IsReachVersion62 bool
+	// 达到 7.4.0 版本
+	IsReachVersion74 bool
 )
 
-// 设置DEBUG模式
-func SetDebug(mode Mode) {
-	debugMode = mode
+// 开启DEBUG模式，打印请求和返回。（不要在生产环境开启）
+func OpenDebug() {
+	isDebugMode.Store(true)
 }
 
-func toAnys[E any](vals []E) []any {
-	ans := make([]any, len(vals))
-	for i, v := range vals {
-		ans[i] = v
-	}
-	return ans
+// 自定义额外处理cmd
+func SetCmdHook(fn func(cmd redis.Cmder)) {
+	cmdHook = fn
 }
 
-func stringTo[E cmp.Ordered](input string) E {
-	var zero E
-	rt := reflect.TypeOf(zero)
-	switch rt.Kind() {
-	case reflect.String:
-		return any(input).(E)
-	case reflect.Int:
-		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
-			return any(int(n)).(E)
-		}
-	case reflect.Int8:
-		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
-			return any(int8(n)).(E)
-		}
-	case reflect.Int16:
-		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
-			return any(int16(n)).(E)
-		}
-	case reflect.Int32:
-		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
-			return any(int32(n)).(E)
-		}
-	case reflect.Int64:
-		if n, err := strconv.ParseInt(input, 10, rt.Bits()); err == nil {
-			return any(n).(E)
-		}
-	case reflect.Uint:
-		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
-			return any(uint(n)).(E)
-		}
-	case reflect.Uint8:
-		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
-			return any(uint8(n)).(E)
-		}
-	case reflect.Uint16:
-		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
-			return any(uint16(n)).(E)
-		}
-	case reflect.Uint32:
-		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
-			return any(uint32(n)).(E)
-		}
-	case reflect.Uint64:
-		if n, err := strconv.ParseUint(input, 10, rt.Bits()); err == nil {
-			return any(n).(E)
-		}
-	case reflect.Float32:
-		if n, err := strconv.ParseFloat(input, rt.Bits()); err == nil {
-			return any(float32(n)).(E)
-		}
-	case reflect.Float64:
-		if n, err := strconv.ParseFloat(input, rt.Bits()); err == nil {
-			return any(n).(E)
-		}
-	case reflect.Bool:
-		if b, err := strconv.ParseBool(input); err == nil {
-			return any(b).(E)
-		}
-	}
-	return zero
+// 自定义错误处理 (用于自定义日志打印和消息通知)
+func SetErrorHook(fn func(err error)) {
+	errorHook = fn
 }
 
-func stringsToSlice[E cmp.Ordered](input []string) []E {
-	if len(input) == 0 {
-		return nil
-	}
-	output := make([]E, 0, len(input))
-	for _, s := range input {
-		output = append(output, stringTo[E](s))
-	}
-	return output
+// 设置所有的key的前缀
+func SetPrefix(prefix string) {
+	keyPrefix = prefix
 }
 
-func toJSON(data any) string {
-	if data == nil {
-		return "null"
-	}
-	b, _ := json.Marshal(data)
-	return string(b)
+// 获取版本号
+func Version() string {
+	return versionCurrent
 }
 
-func toString(v any) string {
-	switch x := v.(type) {
-	case string:
-		return x
-	case int8:
-		return strconv.Itoa(int(x))
-	case int16:
-		return strconv.Itoa(int(x))
-	case int32:
-		return strconv.Itoa(int(x))
-	case int64:
-		return strconv.Itoa(int(x))
-	case uint8:
-		return strconv.Itoa(int(x))
-	case uint16:
-		return strconv.Itoa(int(x))
-	case uint32:
-		return strconv.Itoa(int(x))
-	case uint64:
-		return strconv.Itoa(int(x))
-	case float32:
-		return strconv.FormatFloat(float64(x), 'f', -1, 32)
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	case bool:
-		return strconv.FormatBool(x)
-	default:
-		return toJSON(x)
+func initInfo() {
+	info := DB().Info(context.Background(), "Server").Val()
+	for _, line := range strings.Split(info, "\r\n") {
+		if strings.HasPrefix(line, "redis_version:") {
+			versionCurrent = strings.TrimPrefix(line, "redis_version:")
+			break
+		}
 	}
+	IsReachVersion62 = IsReachVersion(version62)
+	IsReachVersion74 = IsReachVersion(version74)
+}
+
+// 当前连接redis是否达到目标版本
+func IsReachVersion(targetVerion string) bool {
+	cv := Version()
+	if cv == targetVerion {
+		return true
+	}
+
+	current := strings.Split(Version(), ".")
+	target := strings.Split(targetVerion, ".")
+	for i, v := range current {
+		if i < len(target) && v != target[i] {
+			n1, _ := strconv.Atoi(v)
+			n2, _ := strconv.Atoi(target[i])
+			return n1 > n2
+		}
+	}
+
+	return false
 }

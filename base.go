@@ -9,9 +9,8 @@ import (
 )
 
 type base struct {
-	key     string
-	ctx     context.Context
-	cmdable Cmdable
+	key string
+	ctx context.Context
 }
 
 func NewBase(ctx context.Context, key string) (b base) {
@@ -19,7 +18,7 @@ func NewBase(ctx context.Context, key string) (b base) {
 		ctx = context.Background()
 	}
 	b.ctx = ctx
-	b.key = key
+	b.key = keyPrefix + key
 	return
 }
 
@@ -28,47 +27,58 @@ func (b *base) Key() string {
 }
 
 func (b *base) db() Cmdable {
-	if b.cmdable != nil {
-		return b.cmdable
-	}
 	return DB()
 }
 
-func (b *base) Expire(exp time.Duration) *BoolCmd {
-	cmd := b.db().Expire(b.ctx, b.key, exp)
+func (b *base) Expire(exp time.Duration) BoolCmd {
+	var cmd *redis.BoolCmd
+	if exp == KeepTTL {
+		cmd = b.db().Persist(b.ctx, b.key)
+	} else {
+		cmd = b.db().Expire(b.ctx, b.key, exp)
+	}
 	b.done(cmd)
-	return &BoolCmd{cmd: cmd}
+	return newBoolCmd(cmd)
 }
 
-func (b *base) ExpireAt(expAt time.Time) *BoolCmd {
+func (b *base) ExpireAt(expAt time.Time) BoolCmd {
 	cmd := b.db().ExpireAt(b.ctx, b.key, expAt)
 	b.done(cmd)
-	return &BoolCmd{cmd: cmd}
+	return newBoolCmd(cmd)
 }
 
-func (b *base) Exists() *BoolCmd {
+func (b *base) Exists() BoolCmd {
 	cmd := b.db().Exists(b.ctx, b.key)
 	b.done(cmd)
-	return &BoolCmd{cmd: cmd}
+	return newBoolCmd(cmd)
 }
 
-func (b *base) Del() *BoolCmd {
+func (b *base) Del() BoolCmd {
 	cmd := b.db().Del(b.ctx, b.key)
 	b.done(cmd)
-	return &BoolCmd{cmd: cmd}
+	return newBoolCmd(cmd)
 }
 
-func (b *base) TTL() *DurationCmd {
+func (b *base) TTL() DurationCmd {
 	cmd := b.db().TTL(b.ctx, b.key)
 	b.done(cmd)
-	return &DurationCmd{cmd: cmd}
+	return newDurationCmd(cmd)
 }
 
 func (b *base) done(cmd redis.Cmder) {
-	// 打印命令
-	if debugMode == ModeCommand {
-		fmt.Println(cmd.Args()...)
-	} else if debugMode == ModeFull {
+	// 开发模式打印命令和结果
+	if isDebugMode.Load() {
 		fmt.Println(cmd.String())
 	}
+
+	// cmd 钩子
+	if cmdHook != nil {
+		cmdHook(cmd)
+	}
+
+	// 错误钩子
+	if errorHook != nil && cmd.Err() != nil && cmd.Err() != redis.Nil {
+		errorHook(cmd.Err())
+	}
+
 }
