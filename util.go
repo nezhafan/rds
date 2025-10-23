@@ -267,24 +267,13 @@ func toBool(cmder redis.Cmder) bool {
 	}
 }
 
-func toAny[E any](cmder redis.Cmder) (e E) {
-	switch c := cmder.(type) {
-	case *redis.StringCmd:
-		return string2Any[E](c.Val())
-	case *redis.Cmd:
-		switch any(e).(type) {
-		case int, int8, int16, int32, int64:
-			n, _ := c.Int64()
-			return any(n).(E)
-		case uint, uint8, uint16, uint32, uint64:
-			n, _ := c.Uint64()
-			return any(n).(E)
-		case float64, float32:
-			n, _ := c.Float64()
-			return any(n).(E)
-		}
+func toAny[E any](cmder redis.Cmder) E {
+	c, ok := cmder.(*redis.StringCmd)
+	if !ok {
+		var e E
+		return e
 	}
-	return e
+	return string2Any[E](c.Val())
 }
 
 func toMap[E cmp.Ordered](cmder redis.Cmder, fields []string) (mp map[string]E) {

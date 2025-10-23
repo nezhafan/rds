@@ -77,22 +77,22 @@ func TestGeo_GeoPos(t *testing.T) {
 	v, err := g.GeoPos("Alice", "Bob", "Cynthia").Result()
 	assert.NoError(t, err)
 
-	assert.InDelta(t, 116.390, v[0].Longitude, 0.001)
-	assert.InDelta(t, 39.916, v[0].Latitude, 0.001)
+	assert.InDelta(t, 116.390, v["Alice"].Longitude, 0.001)
+	assert.InDelta(t, 39.916, v["Alice"].Latitude, 0.001)
 
-	assert.InDelta(t, 116.390, v[1].Longitude, 0.001)
-	assert.InDelta(t, 39.925, v[1].Latitude, 0.001)
+	assert.InDelta(t, 116.390, v["Bob"].Longitude, 0.001)
+	assert.InDelta(t, 39.925, v["Bob"].Latitude, 0.001)
 
 	// 不存在为nil
-	assert.Nil(t, v[2])
+	assert.Nil(t, v["Cynthia"])
 
 	// 修改
 	g.GeoAdd(116.380, 49.916, "Alice", "")
 
 	v, err = g.GeoPos("Alice").Result()
 	assert.NoError(t, err)
-	assert.InDelta(t, 116.380, v[0].Longitude, 0.001)
-	assert.InDelta(t, 49.916, v[0].Latitude, 0.001)
+	assert.InDelta(t, 116.380, v["Alice"].Longitude, 0.001)
+	assert.InDelta(t, 49.916, v["Alice"].Latitude, 0.001)
 
 	g.Del()
 }
@@ -131,7 +131,7 @@ func TestGeo_GeoDist(t *testing.T) {
 	g.Del()
 }
 
-func TestGeo_GeoSearchByMember(t *testing.T) {
+func TestGeo_GeoSearchByCoord(t *testing.T) {
 	g := newGeo()
 
 	g.GeoBatchAdd(map[string]rds.GeoPos{
@@ -142,7 +142,7 @@ func TestGeo_GeoSearchByMember(t *testing.T) {
 
 	// 搜索990米内（1000米实际计算后大概是1001）
 	const dist = 990.
-	v, err := g.GeoSearchByMember("Alice", dist, 0, true, true, true).Result()
+	v, err := g.GeoSearchByCoord(116.390, 39.916, dist, 0, nil).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(v))
 
@@ -155,6 +155,56 @@ func TestGeo_GeoSearchByMember(t *testing.T) {
 	// 不应该找到1000
 	d := g.GeoDist("Alice", "1000").Val()
 	assert.Greater(t, d, dist)
+
+	g.Del()
+}
+
+func TestGeo_GeoSearchByMember(t *testing.T) {
+	g := newGeo()
+
+	g.GeoBatchAdd(map[string]rds.GeoPos{
+		"Alice": {Longitude: 116.390, Latitude: 39.916},
+		"1000":  {Longitude: 116.390, Latitude: 39.925},
+		"850":   {Longitude: 116.380, Latitude: 39.916},
+	}, "")
+
+	// 搜索990米内（1000米实际计算后大概是1001）
+	const dist = 990.
+	v, err := g.GeoSearchByMember("Alice", dist, 0, nil).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, len(v))
+
+	// 一个总是自己
+	assert.EqualValues(t, "Alice", v[0].Name)
+	// 可以找到850
+	assert.EqualValues(t, "850", v[1].Name)
+	assert.LessOrEqual(t, v[1].Dist, dist)
+
+	// 不应该找到1000
+	d := g.GeoDist("Alice", "1000").Val()
+	assert.Greater(t, d, dist)
+
+	g.Del()
+}
+
+func TestGeo_GeoDel(t *testing.T) {
+	g := newGeo()
+
+	g.GeoBatchAdd(map[string]rds.GeoPos{
+		"Alice": {Longitude: 116.390, Latitude: 39.916},
+		"1000":  {Longitude: 116.390, Latitude: 39.925},
+		"850":   {Longitude: 116.380, Latitude: 39.916},
+	}, "")
+
+	v, err := g.GeoDel("Alice", "1000").Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, v)
+
+	p, err := g.GeoPos("Alice", "1000", "850").Result()
+	assert.NoError(t, err)
+	assert.Nil(t, p["Alice"])
+	assert.Nil(t, p["1000"])
+	assert.NotNil(t, p["850"])
 
 	g.Del()
 }

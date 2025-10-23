@@ -18,7 +18,6 @@ const (
 )
 
 const (
-	version74 = "7.4.0"
 	version62 = "6.2.0"
 )
 
@@ -35,8 +34,6 @@ var (
 	versionCurrent string
 	// 达到 6.2.0 版本
 	IsReachVersion62 bool
-	// 达到 7.4.0 版本
-	IsReachVersion74 bool
 )
 
 // 开启DEBUG模式，打印请求和返回。（不要在生产环境开启）
@@ -73,7 +70,6 @@ func initInfo() {
 		}
 	}
 	IsReachVersion62 = IsReachVersion(version62)
-	IsReachVersion74 = IsReachVersion(version74)
 }
 
 // 当前连接redis是否达到目标版本

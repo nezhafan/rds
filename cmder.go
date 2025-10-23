@@ -138,7 +138,7 @@ type AnyCmd[E any] struct {
 	cmdR[E]
 }
 
-func newAnyCmd[E any](cmd redis.Cmder) AnyCmd[E] {
+func newAnyCmd[E any](cmd *redis.StringCmd) AnyCmd[E] {
 	return AnyCmd[E]{newCmdR(cmd, toAny[E])}
 }
 
@@ -157,8 +157,6 @@ type ZSliceCmd[E cmp.Ordered] struct {
 func newZSliceCmd[E cmp.Ordered](cmd *redis.ZSliceCmd) ZSliceCmd[E] {
 	return ZSliceCmd[E]{newCmd(cmd, toZSlice[E])}
 }
-
-type GeoPosCmd = *redis.GeoPosCmd
 
 type MapCmd[E cmp.Ordered] struct {
 	cmd    redis.Cmder
@@ -203,4 +201,53 @@ func (c StructCmd[E]) Err() error {
 
 func (c StructCmd[E]) Result() (obj *E, err error) {
 	return c.Val(), c.Err()
+}
+
+type GeoPos = redis.GeoPos
+
+type GeoPosCmd struct {
+	cmder   *redis.GeoPosCmd
+	members []string
+}
+
+func newGeoPosCmd(cmder *redis.GeoPosCmd, members []string) GeoPosCmd {
+	return GeoPosCmd{cmder: cmder, members: members}
+}
+
+func (g GeoPosCmd) Val() map[string]*GeoPos {
+	mp := make(map[string]*GeoPos, len(g.members))
+	for i, v := range g.cmder.Val() {
+		mp[g.members[i]] = v
+	}
+	return mp
+}
+
+func (g GeoPosCmd) Err() error {
+	return g.cmder.Err()
+}
+
+func (g GeoPosCmd) Result() (map[string]*GeoPos, error) {
+	return g.Val(), g.Err()
+}
+
+type GeoLocation = redis.GeoLocation
+
+type GeoLocationCmd struct {
+	cmder *redis.GeoSearchLocationCmd
+}
+
+func newGeoLocationCmd(cmder *redis.GeoSearchLocationCmd) GeoLocationCmd {
+	return GeoLocationCmd{cmder: cmder}
+}
+
+func (g GeoLocationCmd) Val() []GeoLocation {
+	return g.cmder.Val()
+}
+
+func (g GeoLocationCmd) Err() error {
+	return g.cmder.Err()
+}
+
+func (g GeoLocationCmd) Result() ([]GeoLocation, error) {
+	return g.Val(), g.Err()
 }

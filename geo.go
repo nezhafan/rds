@@ -7,9 +7,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type GeoLocation = redis.GeoLocation
-type GeoPos = redis.GeoPos
-
 type Geo struct {
 	base
 }
@@ -53,7 +50,7 @@ func (g *Geo) GeoBatchAdd(locations map[string]GeoPos, mode string) Int64Cmd {
 func (g *Geo) GeoPos(members ...string) GeoPosCmd {
 	cmd := g.db().GeoPos(g.ctx, g.key, members...)
 	g.done(cmd)
-	return cmd
+	return newGeoPosCmd(cmd, members)
 }
 
 // 计算距离（米) 如果其中一个成员不存在则返回0
@@ -73,49 +70,66 @@ func (g *geo) GeoRadiusByMember() {
 }
 */
 
-// 依据一个经纬度点搜索半径radius米范围内的点
-// func (g *Geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64, withCoord bool, withDist bool, ascSort bool) *redis.GeoSearchLocationCmd {
-// 	var sort string
-// 	if ascSort {
-// 		sort = "ASC"
-// 	}
-// 	query := &redis.GeoSearchLocationQuery{
-// 		GeoSearchQuery: redis.GeoSearchQuery{
-// 			Longitude:  longitude,
-// 			Latitude:   latitude,
-// 			Radius:     radius,     // 半径
-// 			RadiusUnit: "m",        // 米
-// 			Sort:       sort,       // 排序方式
-// 			CountAny:   !ascSort,   // 是否找到count个匹配项后立即返回。这意味着返回的结果可能不是最接近指定点，但是效率高
-// 			Count:      int(count), // 返回数量
-// 		},
-// 		WithCoord: withCoord, // 返回经纬度
-// 		WithDist:  withDist,  // 计算距离
-// 		WithHash:  false,
-// 	}
-// 	return g.db().GeoSearchLocation(g.ctx, g.key, query)
-// }
+type GeoQuery struct {
+	WithDist  bool // 是否返回距离。默认 true
+	WithCoord bool // 是否返回经纬度。默认 false
+	WithHash  bool // 是否返回hash。默认 false
+	CountAny  bool // 是否不严格按照距离返回。开启时，返回的结果可能不是最接近指定点，但是效率高。默认 false
+}
 
-// 依据一个成员搜索半径radius米范围内的点 （结果包含其本身）
-func (g *Geo) GeoSearchByMember(member string, radius float64, count int64, withCoord bool, withDist bool, ascSort bool) *redis.GeoSearchLocationCmd {
-	var sort string
-	if ascSort {
-		sort = "ASC"
+// 依据一个经纬度点搜索其半径radius米范围内的点，count为0时返回所有。（结果包含其本身）
+func (g *Geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64, q *GeoQuery) GeoLocationCmd {
+	withDist, withCoord, withHash, countAny := true, false, false, false
+	if q != nil {
+		withDist = q.WithDist
+		withCoord = q.WithCoord
+		withHash = q.WithHash
+		countAny = q.CountAny
+	}
+	query := &redis.GeoSearchLocationQuery{
+		GeoSearchQuery: redis.GeoSearchQuery{
+			Longitude:  longitude,
+			Latitude:   latitude,
+			Radius:     radius,     // 半径
+			RadiusUnit: "m",        // 米
+			Sort:       "ASC",      // 排序方式
+			CountAny:   countAny,   // 是否找到count个匹配项后立即返回。
+			Count:      int(count), // 返回数量
+		},
+		WithCoord: withCoord, // 返回经纬度
+		WithDist:  withDist,  // 计算距离
+		WithHash:  withHash,
+	}
+	cmd := g.db().GeoSearchLocation(g.ctx, g.key, query)
+	g.done(cmd)
+	return newGeoLocationCmd(cmd)
+}
+
+// 依据一个成员搜索半径radius米范围内的点，count为0时返回所有。（结果包含其本身）
+func (g *Geo) GeoSearchByMember(member string, radius float64, count int64, q *GeoQuery) *redis.GeoSearchLocationCmd {
+	withDist, withCoord, withHash, countAny := true, false, false, false
+	if q != nil {
+		withDist = q.WithDist
+		withCoord = q.WithCoord
+		withHash = q.WithHash
+		countAny = q.CountAny
 	}
 	query := &redis.GeoSearchLocationQuery{
 		GeoSearchQuery: redis.GeoSearchQuery{
 			Member:     member,
 			Radius:     radius,     // 半径
 			RadiusUnit: "m",        // 米
-			Sort:       sort,       // 排序方式
-			CountAny:   !ascSort,   // 是否找到count个匹配项后立即返回。这意味着返回的结果可能不是最接近指定点，但是效率高
+			Sort:       "ASC",      // 排序方式
+			CountAny:   countAny,   // 是否找到count个匹配项后立即返回。
 			Count:      int(count), // 返回数量
 		},
 		WithCoord: withCoord, // 返回经纬度
 		WithDist:  withDist,  // 计算距离
-		WithHash:  false,
+		WithHash:  withHash,
 	}
-	return g.db().GeoSearchLocation(g.ctx, g.key, query)
+	cmd := g.db().GeoSearchLocation(g.ctx, g.key, query)
+	g.done(cmd)
+	return cmd
 }
 
 func (g *Geo) GeoDel(members ...string) Int64Cmd {

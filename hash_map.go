@@ -56,10 +56,18 @@ func (h *HashMap[E]) HGetAll() MapCmd[E] {
 	return newMapCmd[E](cmd, nil)
 }
 
-// 注意float有精度问题
-func (h *HashMap[E]) HIncrBy(field string, incr E) AnyCmd[E] {
-	cmd := h.db().Do(h.ctx, "hincrby", h.key)
-	return newAnyCmd[E](cmd)
+// 注意 hincrby 去增长一个浮点数字段会报错
+func (h *HashMap[E]) HIncrBy(field string, incr int64) Int64Cmd {
+	cmd := h.db().HIncrBy(h.ctx, h.key, field, incr)
+	h.done(cmd)
+	return newInt64Cmd(cmd)
+}
+
+// 注意 hincrbyfloat 可能出现精度问题
+func (h *HashMap[E]) HIncrByFloat(field string, incr float64) Float64Cmd {
+	cmd := h.db().HIncrByFloat(h.ctx, h.key, field, incr)
+	h.done(cmd)
+	return newFloat64Cmd(cmd)
 }
 
 // 返回删除成功数

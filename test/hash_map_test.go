@@ -119,16 +119,21 @@ func TestHashMap_HLen(t *testing.T) {
 	hm.Del()
 }
 
-// func TestHashMap_HIncrBy(t *testing.T) {
-// 	hm := newHashMap()
-// 	hm.HSet(testHaspMap)
+func TestHashMap_HIncrBy(t *testing.T) {
+	hm1 := rds.NewHashMap[float64](ctx, "hash_struct_int_test")
+	hm1.HSet(map[string]float64{"a": 3.33})
+	v1, err := hm1.HIncrByFloat("a", -2.22).Result()
+	assert.NoError(t, err)
+	assert.InDelta(t, 1.11, v1, 0.01)
+	hm1.Del()
 
-// 	val, err := hm.HIncrBy("a", -2.22).Result()
-// 	assert.Equal(t, 1.11, val)
-// 	assert.NoError(t, err)
-
-// 	hm.Del()
-// }
+	hm2 := rds.NewHashMap[int](ctx, "hash_struct_float_test")
+	hm2.HSet(map[string]int{"a": 1})
+	v2, err := hm2.HIncrBy("a", 1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, v2)
+	hm2.Del()
+}
 
 func TestHashMap_HDel(t *testing.T) {
 	hm := newHashMap()
