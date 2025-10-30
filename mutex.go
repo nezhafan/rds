@@ -5,26 +5,35 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 var (
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
+	// 重试间隔(毫秒)，斐波那契数列
+	retryIntervals = []time.Duration{10, 10, 20, 30, 50, 80, 130, 210, 340, 550}
 )
 
 type Mutex struct {
 	base
-	id  string
-	exp time.Duration
+	id           string
+	maxExpSecond int64
 }
 
-// ctx 不要传context.Background()，需要传一个带超时的context
-// maxExp 传该锁的最大过期时间，建议 10s-60s。 如果锁过期而上一个业务没处理完，则会产生问题，所以要对业务有一定预估
-func NewMutex(ctx context.Context, key string, maxExp time.Duration) *Mutex {
+/*
+分布式锁
+- 可重入锁，不同用户请求应该没次都New而不是获取同一个Mutex，因为一个Mutex对象Lock总是成功的，同一个上下文请求可以重复加锁。
+- 重试机制：使用毫秒级的斐波那契数列，10ms，10ms，20ms... 最大550ms的间隔一直重试
+- ctx 不要传context.Background()，需要传一个带超时的context
+- maxExpSecond 传该锁的最大过期秒数，建议 10s-60s。 如果锁过期而上一个业务没处理完，则会产生问题，所以要对业务有一定预估
+*/
+func NewMutex(ctx context.Context, key string, maxExpSecond int64) *Mutex {
 	return &Mutex{
-		base: NewBase(ctx, key),
-		id:   strconv.Itoa(int(rd.Int31())),
-		exp:  maxExp,
+		base:         NewBase(ctx, key),
+		id:           strconv.Itoa(int(rd.Int31())),
+		maxExpSecond: maxExpSecond,
 	}
 }
 
@@ -35,27 +44,40 @@ if redis.call("GET", KEYS[1]) == ARGV[1] then
 	return "OK"
 else
 	return redis.call("SET", KEYS[1], ARGV[1], "NX", "EX", ARGV[2])
-end`
+end
+`
 
 // 尝试加锁
-func (m *Mutex) TryLock() bool {
+func (m *Mutex) TryLock() (bool, error) {
 	keys := []string{m.key}
-	resp, err := DB().Eval(m.ctx, lockScript, keys, m.id, m.exp/time.Second).Result()
-	return err == nil && resp.(string) == "OK"
+	cmd := DB().Eval(m.ctx, lockScript, keys, m.id, m.maxExpSecond)
+	m.done(cmd)
+	resp, err := cmd.Result()
+	ok := err == nil && resp.(string) == "OK"
+	if err == redis.Nil {
+		err = nil
+	}
+	return ok, err
 }
 
 // 加锁。 每10-20ms重试一次
 func (m *Mutex) Lock() error {
+	var retry int
 	for {
-		if m.TryLock() {
+		ok, err := m.TryLock()
+		if err != nil {
+			return err
+		}
+		if ok {
 			return nil
 		}
 		select {
 		case <-m.ctx.Done():
 			return context.DeadlineExceeded
 		default:
-			retryTime := time.Duration(rd.Intn(10)+10) * time.Millisecond
-			time.Sleep(retryTime)
+			milli := retryIntervals[min(retry, len(retryIntervals)-1)]
+			time.Sleep(milli * time.Millisecond)
+			retry++
 		}
 	}
 }
@@ -66,8 +88,10 @@ if redis.call("GET", KEYS[1]) == ARGV[1] then
 	return redis.call("DEL", KEYS[1])
 else
 	return 0
-end`
+end
+`
 
 func (m *Mutex) Unlock() {
-	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
+	cmd := DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
+	m.done(cmd)
 }

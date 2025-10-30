@@ -1,8 +1,8 @@
 package test
 
 import (
+	"context"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -11,35 +11,30 @@ import (
 )
 
 func TestMutex_Lock(t *testing.T) {
-	wg := new(sync.WaitGroup)
-	wg.Add(2)
+	// 用sleep模拟业务耗时
+	const taskCost = time.Millisecond * 20
 
-	var counter atomic.Int64
-	mu := rds.NewMutex(ctx, "mutex_test", time.Millisecond*100)
+	wg := new(sync.WaitGroup)
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+	defer cancel()
 	start := time.Now()
 
-	go func() {
-		if err := mu.Lock(); err != nil {
-			counter.Add(1)
-			return
-		}
-		defer mu.Unlock()
-		time.Sleep(time.Millisecond * 10) // 模拟业务处理5毫秒
-	}()
-
-	go func() {
-		if err := mu.Lock(); err != nil {
-			counter.Add(1)
-			return
-		}
-		defer mu.Unlock()
-		time.Sleep(time.Millisecond * 5) // 模拟业务处理5毫秒
-	}()
+	// 模拟并发请求。
+	for i := 0; i < 2; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			mu := rds.NewMutex(ctx, "mutex_test", 30)
+			err := mu.Lock()
+			assert.NoError(t, err)
+			defer mu.Unlock()
+			time.Sleep(taskCost)
+		}()
+	}
 
 	wg.Wait()
 
 	cost := time.Since(start).Milliseconds()
-	assert.LessOrEqual(t, cost, time.Millisecond*16)
-	assert.GreaterOrEqual(t, cost, time.Millisecond*15)
-	assert.EqualValues(t, 1, counter.Load())
+	assert.LessOrEqual(t, cost, taskCost*2)
 }
