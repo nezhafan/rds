@@ -32,7 +32,7 @@ func (s *Float64) Get() Float64CmdR {
 }
 
 // 建议：判断 返回值 == 增长值 时，设置一下过期时间
-func (s *Float64) IncrBy(increment float64) Float64Cmd {
+func (s *Float64) IncrByFloat(increment float64) Float64Cmd {
 	cmd := s.db().IncrByFloat(s.ctx, s.key, increment)
 	s.done(cmd)
 	return newFloat64Cmd(cmd)

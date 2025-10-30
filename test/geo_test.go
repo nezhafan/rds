@@ -14,51 +14,44 @@ func newGeo() *rds.Geo {
 func TestGeo_GeoAdd(t *testing.T) {
 	g := newGeo()
 
-	v, err := g.GeoAdd(116.390, 39.916, "Alice", "").Result()
+	v, err := g.GeoAdd(map[string]rds.GeoPos{
+		"Alice": {Longitude: 116.390, Latitude: 39.916},
+	}).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, v)
 
-	// 默认模式：修改或新增，但是只返回新增数量。
-	v, err = g.GeoAdd(110.390, 39.916, "Alice", "").Result()
+	// 只返回新增数量。
+	v, err = g.GeoAdd(map[string]rds.GeoPos{
+		"Alice": {Longitude: 100.390, Latitude: 30.916},
+		"1000":  {Longitude: 116.390, Latitude: 39.925},
+	}).Result()
 	assert.NoError(t, err)
-	assert.EqualValues(t, 0, v)
+	assert.EqualValues(t, 1, v)
 
 	// 6.2.0 版本以上模式
 	if rds.IsReachVersion62 {
 		// 仅新增
-		v, err = g.GeoAdd(111.390, 39.916, "Alice", "nx").Result()
-		assert.NoError(t, err)
-		assert.EqualValues(t, 0, v)
-		// 仅修改
-		v, err = g.GeoAdd(112.390, 39.916, "Alice", "xx").Result()
-		assert.NoError(t, err)
-		assert.EqualValues(t, 0, v)
-		// 新增或修改 (区别于默认，会返回新增+修改成功数量)
-		v, err = g.GeoAdd(113.390, 39.916, "Alice", "ch").Result()
+		v, err = g.GeoAdd(map[string]rds.GeoPos{
+			"Alice": {Longitude: 101.390, Latitude: 30.916},
+			"850":   {Longitude: 116.380, Latitude: 39.916},
+		}, "nx").Result()
 		assert.NoError(t, err)
 		assert.EqualValues(t, 1, v)
-	}
 
-	g.Del()
-}
+		// 仅修改
+		v, err = g.GeoAdd(map[string]rds.GeoPos{
+			"Alice": {Longitude: 102.390, Latitude: 30.916},
+			"None":  {Longitude: 116.380, Latitude: 39.916},
+		}, "xx").Result()
+		assert.NoError(t, err)
+		assert.EqualValues(t, 0, v)
+		assert.InDelta(t, 102.390, g.GeoPos("Alice").Val()["Alice"].Longitude, 0.01)
+		assert.Nil(t, g.GeoPos("Alice").Val()["None"])
 
-func TestGeo_GeoBatchAdd(t *testing.T) {
-	g := newGeo()
-
-	v, err := g.GeoBatchAdd(map[string]rds.GeoPos{
-		"Alice": {Longitude: 116.390, Latitude: 39.916},
-		"Bob":   {Longitude: 116.390, Latitude: 39.925},
-	}, "").Result()
-	assert.NoError(t, err)
-	assert.EqualValues(t, 2, v)
-
-	// 仅新增不修改
-	if rds.IsReachVersion62 {
-		v, err = g.GeoBatchAdd(map[string]rds.GeoPos{
-			"Alice":   {Longitude: 116.390, Latitude: 39.916},
-			"Bob":     {Longitude: 116.390, Latitude: 39.925},
-			"Cynthia": {Longitude: 116.380, Latitude: 39.916},
-		}, "nx").Result()
+		// 新增或修改 (区别于默认，会返回新增+修改成功数量)
+		v, err = g.GeoAdd(map[string]rds.GeoPos{
+			"Alice": {Longitude: 103.390, Latitude: 30.916},
+		}, "ch").Result()
 		assert.NoError(t, err)
 		assert.EqualValues(t, 1, v)
 	}
@@ -69,10 +62,10 @@ func TestGeo_GeoBatchAdd(t *testing.T) {
 func TestGeo_GeoPos(t *testing.T) {
 	g := newGeo()
 
-	g.GeoBatchAdd(map[string]rds.GeoPos{
+	g.GeoAdd(map[string]rds.GeoPos{
 		"Alice": {Longitude: 116.390, Latitude: 39.916},
 		"Bob":   {Longitude: 116.390, Latitude: 39.925},
-	}, "")
+	})
 
 	v, err := g.GeoPos("Alice", "Bob", "Cynthia").Result()
 	assert.NoError(t, err)
@@ -87,7 +80,7 @@ func TestGeo_GeoPos(t *testing.T) {
 	assert.Nil(t, v["Cynthia"])
 
 	// 修改
-	g.GeoAdd(116.380, 49.916, "Alice", "")
+	g.GeoAdd(map[string]rds.GeoPos{"Alice": {Longitude: 116.380, Latitude: 49.916}})
 
 	v, err = g.GeoPos("Alice").Result()
 	assert.NoError(t, err)
@@ -100,11 +93,11 @@ func TestGeo_GeoPos(t *testing.T) {
 func TestGeo_GeoDist(t *testing.T) {
 	g := newGeo()
 
-	g.GeoBatchAdd(map[string]rds.GeoPos{
+	g.GeoAdd(map[string]rds.GeoPos{
 		"Alice": {Longitude: 116.390, Latitude: 39.916},
 		"1000":  {Longitude: 116.390, Latitude: 39.925},
 		"850":   {Longitude: 116.380, Latitude: 39.916},
-	}, "")
+	})
 
 	// 正常计算距离 约1000米
 	dist, err := g.GeoDist("Alice", "1000").Result()
@@ -134,11 +127,11 @@ func TestGeo_GeoDist(t *testing.T) {
 func TestGeo_GeoSearchByCoord(t *testing.T) {
 	g := newGeo()
 
-	g.GeoBatchAdd(map[string]rds.GeoPos{
+	g.GeoAdd(map[string]rds.GeoPos{
 		"Alice": {Longitude: 116.390, Latitude: 39.916},
 		"1000":  {Longitude: 116.390, Latitude: 39.925},
 		"850":   {Longitude: 116.380, Latitude: 39.916},
-	}, "")
+	})
 
 	// 搜索990米内（1000米实际计算后大概是1001）
 	const dist = 990.
@@ -162,11 +155,11 @@ func TestGeo_GeoSearchByCoord(t *testing.T) {
 func TestGeo_GeoSearchByMember(t *testing.T) {
 	g := newGeo()
 
-	g.GeoBatchAdd(map[string]rds.GeoPos{
+	g.GeoAdd(map[string]rds.GeoPos{
 		"Alice": {Longitude: 116.390, Latitude: 39.916},
 		"1000":  {Longitude: 116.390, Latitude: 39.925},
 		"850":   {Longitude: 116.380, Latitude: 39.916},
-	}, "")
+	})
 
 	// 搜索990米内（1000米实际计算后大概是1001）
 	const dist = 990.
@@ -190,11 +183,11 @@ func TestGeo_GeoSearchByMember(t *testing.T) {
 func TestGeo_GeoDel(t *testing.T) {
 	g := newGeo()
 
-	g.GeoBatchAdd(map[string]rds.GeoPos{
+	g.GeoAdd(map[string]rds.GeoPos{
 		"Alice": {Longitude: 116.390, Latitude: 39.916},
 		"1000":  {Longitude: 116.390, Latitude: 39.925},
 		"850":   {Longitude: 116.380, Latitude: 39.916},
-	}, "")
+	})
 
 	v, err := g.GeoDel("Alice", "1000").Result()
 	assert.NoError(t, err)

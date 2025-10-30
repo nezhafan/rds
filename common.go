@@ -27,7 +27,7 @@ var (
 	// 错误打印
 	errorHook func(err error)
 	// 开发模式
-	isDebugMode atomic.Bool
+	isDebugOpen atomic.Bool
 	// 所有key加前缀
 	keyPrefix string
 	// 版本号
@@ -36,9 +36,9 @@ var (
 	IsReachVersion62 bool
 )
 
-// 开启DEBUG模式，打印请求和返回。（不要在生产环境开启）
-func OpenDebug() {
-	isDebugMode.Store(true)
+// DEBUG模式开启/关闭，打印请求和返回。（不要在生产环境开启）
+func SetDebug(isOpen bool) {
+	isDebugOpen.Store(isOpen)
 }
 
 // 自定义额外处理cmd

@@ -19,11 +19,6 @@ type cmd[E any] struct {
 	cmder    redis.Cmder
 	convert  func(redis.Cmder) E
 	isExists bool
-	// isString bool
-	// isInt    bool
-	// isUint   bool
-	// isFloat  bool
-	// isBool   bool
 }
 
 func newCmd[E any](cmder redis.Cmder, cv convert[E]) cmd[E] {
@@ -32,31 +27,15 @@ func newCmd[E any](cmder redis.Cmder, cv convert[E]) cmd[E] {
 		cmder.SetErr(nil)
 	}
 	c := cmd[E]{cmder: cmder, convert: cv, isExists: isExists}
-	// var e E
-	// switch any(e).(type) {
-	// case string:
-	// 	c.isString = true
-	// case int, int8, int16, int32, int64:
-	// 	c.isInt = true
-	// case uint, uint8, uint16, uint32, uint64:
-	// 	c.isUint = true
-	// case float64, float32:
-	// 	c.isFloat = true
-	// case bool:
-	// 	c.isBool = true
-	// }
 	return c
 }
 
 func (c cmd[E]) Err() error {
-	if c.cmder.Err() == redis.Nil {
-		return nil
-	}
 	return c.cmder.Err()
 }
 
 func (c cmd[E]) Val() E {
-	if c.cmder.Err() == redis.Nil {
+	if !c.isExists {
 		var e E
 		return e
 	}

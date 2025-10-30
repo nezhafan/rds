@@ -63,6 +63,7 @@ func TestExpire(t *testing.T) {
 
 	cache.Set("ok", time.Second)
 
+	// 正常过期时间
 	v, err := cache.Expire(time.Minute).Result()
 	assert.NoError(t, err)
 	assert.True(t, v)
@@ -71,13 +72,24 @@ func TestExpire(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, time.Minute, n)
 
-	v, err = cache.Expire(rds.KeepTTL).Result()
+	// 永不过期
+	assert.Equal(t, -1, rds.KeepTTL)
+	v, err = cache.Expire(-1).Result()
 	assert.NoError(t, err)
 	assert.True(t, v)
 
 	n, err = cache.TTL().Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, rds.KeepTTL, n)
+
+	// 立即过期
+	v, err = cache.Expire(-2).Result()
+	assert.NoError(t, err)
+	assert.True(t, v)
+
+	b, err := cache.Exists().Result()
+	assert.NoError(t, err)
+	assert.False(t, b)
 
 	cache.Del()
 }

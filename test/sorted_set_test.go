@@ -15,24 +15,53 @@ func newSortedSet[E cmp.Ordered]() *rds.SortedSet[E] {
 }
 
 func TestSortedSet_ZAdd(t *testing.T) {
-	cache1 := newSortedSet[string]()
+	cache := newSortedSet[int]()
 
-	v, err := cache1.ZAdd(zsetData).Result()
+	// 新增且更新。 新增3个，返回新增数
+	v, err := cache.ZAdd(map[int]float64{100: 100, 200: 200, 300: 300}).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(4), v)
+	assert.EqualValues(t, 3, v)
 
-	cache2 := newSortedSet[int]()
-	v, err = cache2.ZAdd(map[int]float64{100: 100.1, 200: 200.2, 300: 300.3}).Result()
+	// 新增且更新。 新增1个、更新1个、无更新1个，返回新增数
+	v, err = cache.ZAdd(map[int]float64{100: 100.1, 200: 200, 400: 400}).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(3), v)
+	assert.EqualValues(t, 1, v)
 
-	// 修改成功1个值
-	v, err = cache2.ZAdd(map[int]float64{100: 100.1, 200: 200.3}).Result()
+	// 新增且更新。 新增1个、更新1个、无更新1个，返回新增数+更新成功数
+	v, err = cache.ZAdd(map[int]float64{100: 100.2, 200: 200, 500: 500}, "ch").Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(1), v)
+	assert.EqualValues(t, 2, v)
 
-	cache1.Del()
-	cache2.Del()
+	// nx 新增不更新。 新增1个、更新1个、无更新1个，返回新增数
+	v, err = cache.ZAdd(map[int]float64{100: 100.3, 200: 200, 600: 600}, "nx").Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, v)
+	assert.EqualValues(t, 100.2, cache.ZScore(100).Val()) // 更新不生效
+	assert.EqualValues(t, 600, cache.ZScore(600).Val())
+
+	// xx 更新不新增。 新增1个、更新1个、无更新1个，返回新增数（恒定0）
+	v, err = cache.ZAdd(map[int]float64{100: 100.4, 200: 200, 700: 700}, "xx").Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, v)
+	assert.EqualValues(t, 100.4, cache.ZScore(100).Val()) // 更新成功
+	assert.EqualValues(t, 0, cache.ZScore(700).Val())     // 新增不生效
+
+	// xx ch更新不新增。 新增1个、更新1个、无更新1个
+	v, err = cache.ZAdd(map[int]float64{100: 100.5, 200: 200, 800: 800}, "xx", "ch").Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 1, v)                           // 可以返回更新成功数
+	assert.EqualValues(t, 100.5, cache.ZScore(100).Val()) // 更新成功
+	assert.EqualValues(t, 0, cache.ZScore(800).Val())     // 新增不生效
+
+	// xx gt更新不新增。 新增1个、更新2个(一个变大，一个变小)
+	v, err = cache.ZAdd(map[int]float64{100: 100.6, 200: 199, 900: 900}, "xx", "gt").Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 0, v)                           // 可以返回更新成功数
+	assert.EqualValues(t, 100.6, cache.ZScore(100).Val()) // 更新成功
+	assert.EqualValues(t, 200, cache.ZScore(200).Val())   // 更新不成功
+	assert.EqualValues(t, 0, cache.ZScore(900).Val())     // 新增不生效
+
+	cache.Del()
 }
 
 func TestSortedSet_ZIncrBy(t *testing.T) {
@@ -45,7 +74,8 @@ func TestSortedSet_ZIncrBy(t *testing.T) {
 
 	v, err = cache.ZIncrBy("c", -3).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, 0.2999999999999998, v) // 精度丢失
+	assert.NotEqualValues(t, 0.3, v)
+	assert.InDelta(t, 0.3, v, 0.00000001) // 精度丢失
 
 	v, err = cache.ZIncrBy("d", 0.1).Result()
 	assert.NoError(t, err)

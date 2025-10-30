@@ -9,8 +9,9 @@ import (
 )
 
 type base struct {
-	key string
-	ctx context.Context
+	key  string
+	ctx  context.Context
+	pipe redis.Pipeliner
 }
 
 func NewBase(ctx context.Context, key string) (b base) {
@@ -27,6 +28,9 @@ func (b *base) Key() string {
 }
 
 func (b *base) db() Cmdable {
+	if b.pipe != nil {
+		return b.pipe
+	}
 	return DB()
 }
 
@@ -67,7 +71,7 @@ func (b *base) TTL() DurationCmd {
 
 func (b *base) done(cmd redis.Cmder) {
 	// 开发模式打印命令和结果
-	if isDebugMode.Load() {
+	if isDebugOpen.Load() {
 		fmt.Println(cmd.String())
 	}
 

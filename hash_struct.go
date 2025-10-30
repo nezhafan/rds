@@ -20,7 +20,7 @@ func (h *HashStruct[E]) SubKey(ctx context.Context, subkey string) *HashStruct[E
 	return NewHashStruct[E](ctx, h.key+":"+subkey)
 }
 
-// 对象替换，强制设定过期时间。 //TODO
+// 对象替换，强制设定过期时间
 func (h *HashStruct[E]) HSetAll(obj *E, exp time.Duration) BoolCmd {
 	// 处理缓存nil的情况
 	var values []any
@@ -32,12 +32,13 @@ func (h *HashStruct[E]) HSetAll(obj *E, exp time.Duration) BoolCmd {
 	// 使用管道。 需要先删除，防止出现字段不对齐的情况
 	pipe := h.db().Pipeline()
 	pipe.Del(h.ctx, h.key)
-	cmd := pipe.HSet(h.ctx, h.key, values)
-	pipe.Expire(h.ctx, h.key, exp)
+	cmd1 := pipe.HSet(h.ctx, h.key, values)
+	cmd2 := pipe.Expire(h.ctx, h.key, exp)
 	_, err := pipe.Exec(h.ctx)
-	cmd.SetErr(err)
-	h.done(cmd)
-	return newBoolCmd(cmd)
+	cmd1.SetErr(err)
+	h.done(cmd1)
+	h.done(cmd2)
+	return newBoolCmd(cmd1)
 }
 
 // hset 支持一次性设置多个字段

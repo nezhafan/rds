@@ -78,18 +78,18 @@ func TestFloat64_Get(t *testing.T) {
 	cache.Del()
 }
 
-func TestFloat64_IncrBy(t *testing.T) {
+func TestFloat64_IncrByFloat(t *testing.T) {
 	cache := newFloat64()
 
-	v, err := cache.IncrBy(3.3).Result()
+	v, err := cache.IncrByFloat(3.3).Result()
 	assert.Nil(t, err)
 	assert.Equal(t, float64(3.3), v)
 
-	v, err = cache.IncrBy(0).Result()
+	v, err = cache.IncrByFloat(0).Result()
 	assert.Nil(t, err)
 	assert.Equal(t, float64(3.3), v)
 
-	v, err = cache.IncrBy(-3.3).Result()
+	v, err = cache.IncrByFloat(-3.3).Result()
 	assert.Nil(t, err)
 	assert.Equal(t, float64(0), v)
 

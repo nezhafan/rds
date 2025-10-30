@@ -7,7 +7,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var zsetModes = []string{"xx", "nx", "ch"}
+var zsetModes = []string{"ch", "xx", "nx", "xx ch", "nx ch"}
 
 type SortedSet[E cmp.Ordered] struct {
 	base
@@ -23,10 +23,25 @@ func NewSortedSet[E cmp.Ordered](ctx context.Context, key string) *SortedSet[E] 
 	return &SortedSet[E]{base: NewBase(ctx, key)}
 }
 
-// 添加，返回新增+修改成功数 https://redis.io/docs/latest/commands/zadd/
-func (s *SortedSet[E]) ZAdd(zs map[E]float64) Int64Cmd {
-	args := make([]any, 0, len(zs)*2+3)
-	args = append(args, "zadd", s.key, "ch")
+/*
+添加/修改 https://redis.io/docs/latest/commands/zadd/
+zadd key [nx|xx] [gt|lt] [ch] score member
+  - 不传参新增或更新；nx仅新增不更新； xx仅更新不新增
+  - gt仅新分数大于原分数时更新；lt仅新分数小于原分数时更新；不影响新增；6.2.0版本有效
+  - ch返回结果是否要加上更新成功数，默认仅返回新增数。
+*/
+func (s *SortedSet[E]) ZAdd(zs map[E]float64, params ...string) Int64Cmd {
+	args := make([]any, 0, len(zs)*2+5)
+	args = append(args, "zadd", s.key)
+	if len(params) > 0 {
+		args = append(args, params[0])
+	}
+	if len(params) > 1 {
+		args = append(args, params[1])
+	}
+	if len(params) > 2 {
+		args = append(args, params[2])
+	}
 	for member, score := range zs {
 		args = append(args, score, member)
 	}

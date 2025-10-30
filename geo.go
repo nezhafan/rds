@@ -2,7 +2,6 @@ package rds
 
 import (
 	"context"
-	"slices"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -16,27 +15,24 @@ func NewGeo(ctx context.Context, key string) *Geo {
 	return &Geo{base: NewBase(ctx, key)}
 }
 
-// 添加或修改经纬度坐标 https://redis.io/docs/latest/commands/geoadd/
-// 参数先经度longitude 后纬度 latitude
-// 若大于 6.2.0 版本，可以设置模式: xx仅更新不新增; nx仅新增不更新; ch新增或更新;
-func (g *Geo) GeoAdd(longitude, latitude float64, member string, mode string) Int64Cmd {
-	args := make([]any, 0, 4)
+/*
+添加/修改经纬度坐标 https://redis.io/docs/latest/commands/geoadd/
+注意因为存储浮点数，经常会出现显示的精度问题，计算的距离也有米级别的误差。
+参数先经度longitude 后纬度 latitude
+zadd key [nx|xx] [ch] score member (可选参数仅6.2.0以上支持)
+  - 不传参新增或更新；nx仅新增不更新； xx仅更新不新增
+  - ch返回结果是否要加上更新成功数，默认仅返回新增数。
+*/
+func (g *Geo) GeoAdd(locations map[string]GeoPos, params ...string) Int64Cmd {
+	args := make([]any, 0, len(locations)*3+4)
 	args = append(args, "geoadd", g.key)
-	if IsReachVersion62 && slices.Contains(zsetModes, mode) {
-		args = append(args, mode)
-	}
-	args = append(args, longitude, latitude, member)
-	cmd := g.db().Do(g.ctx, args...)
-	g.done(cmd)
-	return newInt64Cmd(cmd)
-}
-
-// 批量添加
-func (g *Geo) GeoBatchAdd(locations map[string]GeoPos, mode string) Int64Cmd {
-	args := make([]any, 0, 3*len(locations)+3)
-	args = append(args, "geoadd", g.key)
-	if IsReachVersion62 && slices.Contains(zsetModes, mode) {
-		args = append(args, mode)
+	if IsReachVersion62 {
+		if len(params) > 0 {
+			args = append(args, params[0])
+		}
+		if len(params) > 1 {
+			args = append(args, params[1])
+		}
 	}
 	for member, pos := range locations {
 		args = append(args, pos.Longitude, pos.Latitude, member)

@@ -38,7 +38,7 @@ func TestMain(m *testing.M) {
 	defer rds.DB().(*redis.Client).Close()
 
 	// 打印参数和返回值
-	rds.OpenDebug()
+	rds.SetDebug(true)
 
 	// 打印错误
 	rds.SetErrorHook(func(err error) {

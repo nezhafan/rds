@@ -10,36 +10,38 @@ import (
 
 var testJsonUser = User{Name: "Alice"}
 
-func newStringJSON[E any]() *rds.StringJSON[E] {
-	return rds.NewStringJSON[E](ctx, "string_json_test")
+func newJSON[E any]() *rds.JSON[E] {
+	return rds.NewJSON[E](ctx, "json_test")
 }
 
-func TestStringJSON_Set(t *testing.T) {
-	cache1 := newStringJSON[[]int]()
+func TestJSON_Set(t *testing.T) {
+	cache1 := newJSON[[]int]()
 	val, err := cache1.Set(&[]int{1, 2}, time.Second).Result()
 	assert.NoError(t, err)
 	assert.True(t, val)
 	cache1.Del()
 
-	cache2 := newStringJSON[map[string]int]()
-	val, err = cache2.Set(&(map[string]int{"a": 1}), time.Second).Result()
-	assert.NoError(t, err)
-	assert.True(t, val)
-
-	cache3 := newStringJSON[User]()
-	val, err = cache3.Set(&testJsonUser, time.Second).Result()
-	assert.NoError(t, err)
-	assert.True(t, val)
-
-	cache4 := newStringJSON[*int]()
-	val, err = cache4.Set(nil, time.Second).Result()
+	cache2 := newJSON[map[string]int]()
+	val, err = cache2.Set(&map[string]int{"a": 1}, time.Second).Result()
 	assert.NoError(t, err)
 	assert.True(t, val)
 	cache2.Del()
+
+	cache3 := newJSON[User]()
+	val, err = cache3.Set(&testJsonUser, time.Second).Result()
+	assert.NoError(t, err)
+	assert.True(t, val)
+	cache3.Del()
+
+	cache4 := newJSON[User]()
+	val, err = cache4.Set(nil, time.Second).Result()
+	assert.NoError(t, err)
+	assert.True(t, val)
+	cache4.Del()
 }
 
-func TestStringJSON_SetNX(t *testing.T) {
-	cache := newStringJSON[User]()
+func TestJSON_SetNX(t *testing.T) {
+	cache := newJSON[User]()
 	v, err := cache.SetNX(nil, time.Second).Result()
 	assert.NoError(t, err)
 	assert.True(t, v)
@@ -51,12 +53,13 @@ func TestStringJSON_SetNX(t *testing.T) {
 	cache.Del()
 }
 
-func TestStringJSON_Get(t *testing.T) {
+func TestJSON_Get(t *testing.T) {
 	// === 测试结构体 ===
-	cache1 := newStringJSON[User]()
+	cache1 := newJSON[User]()
 	// 测试无缓存
 	exists, v1, err := cache1.Get().R()
 	assert.Nil(t, err)
+	assert.EqualValues(t, User{}, v1)
 	assert.False(t, exists)
 
 	// 测试缓存nil
@@ -82,7 +85,7 @@ func TestStringJSON_Get(t *testing.T) {
 	cache1.Del()
 
 	// === 测试切片 ===
-	cache2 := newStringJSON[[]int]()
+	cache2 := newJSON[[]int]()
 	cache2.Set(&[]int{1, 2}, time.Second)
 	v2, err := cache2.Get().Result()
 	assert.NoError(t, err)
@@ -90,7 +93,7 @@ func TestStringJSON_Get(t *testing.T) {
 	cache2.Del()
 
 	// === 测试map ===
-	cache3 := newStringJSON[map[string]any]()
+	cache3 := newJSON[map[string]any]()
 	cache3.Set(&map[string]any{"a": 1, "b": "2"}, time.Second)
 	v3, err := cache3.Get().Result()
 	assert.NoError(t, err)

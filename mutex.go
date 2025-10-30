@@ -19,13 +19,12 @@ type Mutex struct {
 }
 
 // ctx 不要传context.Background()，需要传一个带超时的context
-// exp 传该锁的过期时间，建议 10s-60s
-// exp 如果锁过期而上一个业务没处理完，则会产生问题，所以要对业务有一定预估
-func NewMutex(ctx context.Context, key string, exp time.Duration) *Mutex {
+// maxExp 传该锁的最大过期时间，建议 10s-60s。 如果锁过期而上一个业务没处理完，则会产生问题，所以要对业务有一定预估
+func NewMutex(ctx context.Context, key string, maxExp time.Duration) *Mutex {
 	return &Mutex{
 		base: NewBase(ctx, key),
 		id:   strconv.Itoa(int(rd.Int31())),
-		exp:  exp,
+		exp:  maxExp,
 	}
 }
 
