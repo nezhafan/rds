@@ -25,9 +25,9 @@ func TestMutex_Lock(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			mu := rds.NewMutex(ctx, "mutex_test", 30)
-			err := mu.Lock()
-			assert.NoError(t, err)
+			mu := rds.NewMutex(ctx, "mutex_test", 10)
+			ok := mu.Lock()
+			assert.True(t, ok)
 			defer mu.Unlock()
 			time.Sleep(taskCost)
 		}()

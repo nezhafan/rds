@@ -6,13 +6,34 @@
 
 ### 类型详情
 #### `string` 
+- `Mutex` 分布式锁
+  - 包含 `Lock()`、`Unlock`、`TryLock` 方法
+  - 若在 `Lock`时阻塞，使用从10ms开始的斐波那契数列间隔重试，直到上下文时间耗尽，或者达到缓存最大过期时间，第一把锁失效。
+  - 示例代码
+    ```go
+    mu := rds.NewMutex(ctx, "order:"+uuid, 30)
+    // 方式一：不阻塞。直接尝试获取
+    if !mu.TryLock() {
+      return errors.New("有其它请求在占用处理")
+    }
+    defer mu.Unlock()
+    // 方式二：阻塞。尝试获取，拿不到重试，直到：拿到锁true/上下文超时false/锁过期true(避免这种情况)。 
+    if !mu.Lock() {
+      return errors.New("等待了很久也没拿到锁，上下文超时了")
+    }
+    defer mu.Unlock()
+    ```
 - `String` 存储字符串。
   - 包含 `Set`、`SetNX`、`Get` 方法。
   - 示例代码
     ```go
     cache := rds.NewString(ctx, "key_string")
     cache.Set("okk")
+    // 方式一：只关心值. 拿不到就去数据库再查。
+    v := cache.Get().Val()
+    // 方式二：需要考虑redis错误，如果错误直接返回之类。
     v, err := cache.Get().Result()
+    // 方式三：值可能是空字符串，需要额外的判断，但是不通过 err == redis.Nil
     exists, v, err := cache.Get().R() 
     ```
 - `JSON[any]` 使用json形式存储 `map`、`slice`、`struct`等。 

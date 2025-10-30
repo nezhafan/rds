@@ -2,18 +2,17 @@ package rds
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
-
-	"github.com/redis/go-redis/v9"
 )
 
 var (
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
 	// 重试间隔(毫秒)，斐波那契数列
-	retryIntervals = []time.Duration{10, 10, 20, 30, 50, 80, 130, 210, 340, 550}
+	retryIntervals = []int{10, 10, 20, 30, 50, 80, 130, 210, 340, 550}
 )
 
 type Mutex struct {
@@ -48,35 +47,30 @@ end
 `
 
 // 尝试加锁
-func (m *Mutex) TryLock() (bool, error) {
+func (m *Mutex) TryLock() bool {
 	keys := []string{m.key}
 	cmd := DB().Eval(m.ctx, lockScript, keys, m.id, m.maxExpSecond)
 	m.done(cmd)
 	resp, err := cmd.Result()
-	ok := err == nil && resp.(string) == "OK"
-	if err == redis.Nil {
-		err = nil
-	}
-	return ok, err
+	return err == nil && resp.(string) == "OK"
 }
 
 // 加锁。 每10-20ms重试一次
-func (m *Mutex) Lock() error {
+func (m *Mutex) Lock() bool {
 	var retry int
 	for {
-		ok, err := m.TryLock()
-		if err != nil {
-			return err
-		}
-		if ok {
-			return nil
-		}
 		select {
 		case <-m.ctx.Done():
-			return context.DeadlineExceeded
+			fmt.Println("加锁超时")
+			return false
 		default:
+			if ok := m.TryLock(); ok {
+				fmt.Println("加锁成功")
+				return true
+			}
 			milli := retryIntervals[min(retry, len(retryIntervals)-1)]
-			time.Sleep(milli * time.Millisecond)
+			time.Sleep(time.Duration(milli) * time.Millisecond)
+			fmt.Println("等待", milli, "毫秒")
 			retry++
 		}
 	}
@@ -94,4 +88,5 @@ end
 func (m *Mutex) Unlock() {
 	cmd := DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
 	m.done(cmd)
+	fmt.Println("解锁成功")
 }
