@@ -93,9 +93,15 @@ func TestHashStruct_HMGet(t *testing.T) {
 
 func TestHashStruct_HGetAll(t *testing.T) {
 	hm := newHashStruct()
+
+	// 无缓存
+	val, err := hm.HGetAll().Result()
+	assert.NoError(t, err)
+	assert.Nil(t, val)
+
 	hm.HSetAll(&testHashUser, time.Minute)
 
-	val, err := hm.HGetAll().Result()
+	val, err = hm.HGetAll().Result()
 	assert.NoError(t, err)
 	assert.Equal(t, "Alice", val.Name)
 	assert.Equal(t, age(20), val.Age)

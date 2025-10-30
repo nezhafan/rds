@@ -7,8 +7,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-var zsetModes = []string{"ch", "xx", "nx", "xx ch", "nx ch"}
-
 type SortedSet[E cmp.Ordered] struct {
 	base
 }

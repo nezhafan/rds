@@ -306,7 +306,7 @@ func toStruct[E any](cmder redis.Cmder, fields []string) *E {
 	var mp map[string]string
 	switch c := cmder.(type) {
 	case *redis.MapStringStringCmd:
-		if c.Val() == nil {
+		if c == nil || len(c.Val()) == 0 {
 			return nil
 		}
 		// 判断缓存空值
