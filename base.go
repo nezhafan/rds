@@ -2,7 +2,6 @@ package rds
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -72,7 +71,8 @@ func (b *base) TTL() DurationCmd {
 func (b *base) done(cmd redis.Cmder) {
 	// 开发模式打印命令和结果
 	if isDebugOpen.Load() {
-		fmt.Println(cmd.String())
+		writer.WriteString(cmd.String())
+		writer.WriteString("\n")
 	}
 
 	// cmd 钩子

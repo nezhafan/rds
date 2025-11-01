@@ -3,7 +3,6 @@ package rds
 import (
 	"cmp"
 	"encoding/json"
-	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
@@ -78,7 +77,6 @@ func slice2Any[E any](cmder redis.Cmder) (output []E) {
 		for i := range val {
 			s, ok := val[i].(string)
 			if !ok {
-				fmt.Println("非字符串类型", val[i])
 				return nil
 			}
 			output = append(output, string2Any[E](s))

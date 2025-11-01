@@ -10,6 +10,7 @@ import (
 
 func TestPipe(t *testing.T) {
 	rds.SetDebug(false)
+
 	const key = "test_pipe"
 	wg := new(sync.WaitGroup)
 
@@ -51,6 +52,8 @@ func TestPipe(t *testing.T) {
 	wg.Wait()
 
 	counter.Del()
+
+	rds.SetDebug(true)
 }
 
 func TestTxPipe(t *testing.T) {
@@ -96,4 +99,7 @@ func TestTxPipe(t *testing.T) {
 	wg.Wait()
 
 	counter.Del()
+
+	rds.SetDebug(true)
+
 }

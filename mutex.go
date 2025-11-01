@@ -2,7 +2,6 @@ package rds
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -11,28 +10,32 @@ import (
 var (
 	// 随机数
 	rd = rand.New(rand.NewSource(time.Now().UnixNano()))
+	// 默认锁过期时间(秒)
+	defaultExpireSecond = 60
 	// 重试间隔(毫秒)，斐波那契数列
-	retryIntervals = []int{10, 10, 20, 30, 50, 80, 130, 210, 340, 550}
+	retryIntervals = []int{5, 5, 10, 20, 30, 50, 80, 130}
 )
 
 type Mutex struct {
 	base
-	id           string
-	maxExpSecond int64
+	id string
 }
 
 /*
 分布式锁
-- 可重入锁，不同用户请求应该没次都New而不是获取同一个Mutex，因为一个Mutex对象Lock总是成功的，同一个上下文请求可以重复加锁。
-- 重试机制：使用毫秒级的斐波那契数列，10ms，10ms，20ms... 最大550ms的间隔一直重试
+- 可重入锁：不同用户请求应该每次都New而不是使用同一个Mutex实例
+- 重试机制：使用斐波那契数列 5ms,5ms,10ms,20ms...最大130ms + 随机0到自身随机值 的间隔一直重试
 - ctx 不要传context.Background()，需要传一个带超时的context
-- maxExpSecond 传该锁的最大过期秒数，建议 10s-60s。 如果锁过期而上一个业务没处理完，则会产生问题，所以要对业务有一定预估
+- 单锁的最大过期时间为60秒，不主动续约，需要自己估计业务时常是否会超过这个值，自己去开定时器利用可重入特性再次Lock
 */
-func NewMutex(ctx context.Context, key string, maxExpSecond int64) *Mutex {
+func NewMutex(ctx context.Context, key string) *Mutex {
+	_, ok := ctx.Deadline()
+	if !ok {
+		panic("参数上下文必须设置超时时间")
+	}
 	return &Mutex{
-		base:         NewBase(ctx, key),
-		id:           strconv.Itoa(int(rd.Int31())),
-		maxExpSecond: maxExpSecond,
+		base: NewBase(ctx, key),
+		id:   strconv.Itoa(int(rd.Int31())),
 	}
 }
 
@@ -48,29 +51,36 @@ end
 
 // 尝试加锁
 func (m *Mutex) TryLock() bool {
-	keys := []string{m.key}
-	cmd := DB().Eval(m.ctx, lockScript, keys, m.id, m.maxExpSecond)
-	m.done(cmd)
+	cmd := DB().Eval(m.ctx, lockScript, []string{m.key}, m.id, defaultExpireSecond)
 	resp, err := cmd.Result()
-	return err == nil && resp.(string) == "OK"
+	ok := err == nil && resp.(string) == "OK"
+	if isDebugOpen.Load() {
+		if ok {
+			writer.WriteString(m.id + " 加锁成功\n")
+		} else {
+			writer.WriteString(m.id + " 加锁失败\n")
+		}
+	}
+	return ok
 }
 
-// 加锁。 每10-20ms重试一次
+// 加锁。 阻塞，定时重试。
 func (m *Mutex) Lock() bool {
 	var retry int
 	for {
 		select {
 		case <-m.ctx.Done():
-			fmt.Println("加锁超时")
 			return false
 		default:
 			if ok := m.TryLock(); ok {
-				fmt.Println("加锁成功")
 				return true
 			}
 			milli := retryIntervals[min(retry, len(retryIntervals)-1)]
+			milli += rd.Intn(milli) // 加上0到自身的随机值
+			if isDebugOpen.Load() {
+				writer.WriteString(m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
+			}
 			time.Sleep(time.Duration(milli) * time.Millisecond)
-			fmt.Println("等待", milli, "毫秒")
 			retry++
 		}
 	}
@@ -85,8 +95,10 @@ else
 end
 `
 
+// 解锁，不会误解其它实例的锁
 func (m *Mutex) Unlock() {
-	cmd := DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
-	m.done(cmd)
-	fmt.Println("解锁成功")
+	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
+	if isDebugOpen.Load() {
+		writer.WriteString(m.id + " 解锁\n")
+	}
 }

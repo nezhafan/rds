@@ -66,9 +66,9 @@ func TestBit_BitPos(t *testing.T) {
 
 	cache.SetBit(1, 0)
 	cache.SetBit(2, 1)
-	cache.SetBit(math.MaxUint32, 1)
+	cache.SetBit(math.MaxUint16, 1)
 
-	v, err := cache.BitPos(1, 0, math.MaxUint32).Result()
+	v, err := cache.BitPos(1, 0, -1).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), v)
 

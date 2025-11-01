@@ -2,14 +2,14 @@ package rds
 
 import (
 	"context"
+	"io"
+	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
 
 	"github.com/redis/go-redis/v9"
 )
-
-type Mode int
 
 const (
 	OK      = "OK"
@@ -28,6 +28,8 @@ var (
 	errorHook func(err error)
 	// 开发模式
 	isDebugOpen atomic.Bool
+	// 日志输出
+	writer io.StringWriter = os.Stdout
 	// 所有key加前缀
 	keyPrefix string
 	// 版本号
@@ -41,9 +43,10 @@ func SetDebug(isOpen bool) {
 	isDebugOpen.Store(isOpen)
 }
 
-// 自定义额外处理cmd
-func SetCmdHook(fn func(cmd redis.Cmder)) {
-	cmdHook = fn
+func SetWriter(w io.StringWriter) {
+	if w != nil {
+		writer = w
+	}
 }
 
 // 自定义错误处理 (用于自定义日志打印和消息通知)

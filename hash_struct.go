@@ -20,7 +20,7 @@ func (h *HashStruct[E]) SubKey(ctx context.Context, subkey string) *HashStruct[E
 	return NewHashStruct[E](ctx, h.key+":"+subkey)
 }
 
-// 对象替换，强制设定过期时间
+// 设置对象，强制设定过期时间。 注意 ⚠️ 要定义 `redis:"xx"` 标签，否则不会存储
 func (h *HashStruct[E]) HSetAll(obj *E, exp time.Duration) BoolCmd {
 	// 处理缓存nil的情况
 	var values []any

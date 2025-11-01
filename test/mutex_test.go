@@ -10,22 +10,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMutex_Lock(t *testing.T) {
+func TestMutex(t *testing.T) {
 	// 用sleep模拟业务耗时
-	const taskCost = time.Millisecond * 20
+	const taskCost = time.Millisecond * 12
 
 	wg := new(sync.WaitGroup)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Second*2)
-	defer cancel()
 	start := time.Now()
 
+	const n = 3
+
 	// 模拟并发请求。
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			mu := rds.NewMutex(ctx, "mutex_test", 10)
+			ctx, cancel := context.WithTimeout(ctx, time.Second*2)
+			defer cancel()
+			mu := rds.NewMutex(ctx, "mutex_test")
 			ok := mu.Lock()
 			assert.True(t, ok)
 			defer mu.Unlock()
@@ -36,5 +38,27 @@ func TestMutex_Lock(t *testing.T) {
 	wg.Wait()
 
 	cost := time.Since(start).Milliseconds()
-	assert.LessOrEqual(t, cost, taskCost*2)
+	assert.LessOrEqual(t, cost, taskCost*n)
+}
+
+func BenchmarkMutex(b *testing.B) {
+	taskCost := time.Millisecond
+	start := time.Now()
+	wg := new(sync.WaitGroup)
+	for i := 0; i < b.N; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(ctx, time.Second*20)
+			defer cancel()
+			mu := rds.NewMutex(ctx, "mutex_benchmark")
+			ok := mu.Lock()
+			assert.True(b, ok)
+			defer mu.Unlock()
+			time.Sleep(taskCost)
+		}()
+	}
+	wg.Wait()
+	cost := time.Since(start).Milliseconds()
+	assert.LessOrEqual(b, cost, taskCost*time.Duration(b.N))
 }
