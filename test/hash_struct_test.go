@@ -22,13 +22,6 @@ func newHashStruct() *rds.HashStruct[User] {
 	return hm
 }
 
-func TestHashStruct_SubKey(t *testing.T) {
-	hm := newHashStruct()
-	subhm := hm.SubKey(ctx, "subkey")
-	assert.Equal(t, "hash_struct_test", hm.Key())
-	assert.Equal(t, hm.Key()+":subkey", subhm.Key())
-}
-
 func TestHashStruct_HSetAll(t *testing.T) {
 	hm := newHashStruct()
 
@@ -105,7 +98,8 @@ func TestHashStruct_HGetAll(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "Alice", val.Name)
 	assert.Equal(t, age(20), val.Age)
-	// assert.Equal(t, "狗狗", *(val.Pet))
+	pet := val.Pet
+	assert.Equal(t, "狗狗", *pet)
 	assert.Equal(t, []string{"电影", "历史"}, val.Likes)
 	assert.Equal(t, 1, len(val.Guns))
 	assert.Empty(t, val.Nothing)

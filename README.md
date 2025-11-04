@@ -14,23 +14,42 @@
 
 ### 类型详情
 > 也可参考 test 测试用例
-#### `string` 
-- `Mutex` 分布式锁
+#### 1.string
+- `Mutex` 分布式锁（可重入）
   - 包含 `Lock()`、`Unlock`、`TryLock` 方法
-  - 若在 `Lock`时阻塞，使用从10ms开始的斐波那契数列间隔重试，直到上下文时间耗尽，或者达到缓存最大过期时间，第一把锁失效。
   - 示例代码
+    > 方式一：不阻塞。直接尝试获取
     ```go
-    mu := rds.NewMutex(ctx, "order:"+uuid, 30)
-    // 方式一：不阻塞。直接尝试获取
+    mu := rds.NewMutex(ctx, "order:"+uuid)
     if !mu.TryLock() {
-      return errors.New("有其它请求在占用处理")
+      return errors.New("有其它请求在占用")
     }
     defer mu.Unlock()
-    // 方式二：阻塞。尝试获取，拿不到重试，直到：拿到锁true/上下文超时false/上个锁到期true(避免这种情况)。 
+    // 业务逻辑...
+    ```
+    > 方式二：阻塞。尝试获取，拿不到重试，直到：拿到锁true/上下文超时false/上个锁到期true(避免这种情况)。
+    ```go
+    mu := rds.NewMutex(ctx, "order:"+uuid) 
     if !mu.Lock() {
       return errors.New("没拿到锁，上下文超时了")
     }
+
+    /* 如果业务处理时间很久，很可能超过60秒，为了防止锁过期被其它请求获取，可以开定时任务加可重入锁
+    go func() {
+      ticker := time.NewTicker(time.Second * 2)
+      defer ticker.Stop()
+      for range ticker.C {
+        select {
+        case <-ctx.Done():
+          return
+        default:
+          mu.Lock()
+        }
+      }
+    }()
+    */
     defer mu.Unlock()
+    // 业务逻辑...
     ```
 
 - `String` 存储字符串。
@@ -41,10 +60,13 @@
     cache.Set("okk", time.Minute)
     // 方式一：只关心值. 拿不到就去数据库再查。
     v := cache.Get().Val()
+    fmt.Println(v)
     // 方式二：需要考虑redis错误，如果错误直接返回之类。
     v, err := cache.Get().Result()
+    fmt.Println(v, err)
     // 方式三：值可能是空字符串，显式判断
-    exists, v, err := cache.Get().R() 
+    exists, v, err := cache.Get().R()
+    fmt.Println(exists, v, err)
     ```
 - `Bool` 存储布尔值（实际存1和0）。
   - 包含 `Set`、`SetNX`、`Get` 方法。
@@ -69,21 +91,23 @@
   - 包含 `Set`、`SetNX`、`Get`、`IncrBy` 方法。
   - 示例代码
     ```go
-    cache := rds.NewInt64[map[string]any](ctx, "key_int64")
+    cache := rds.NewInt64(ctx, "key_int64")
     v := cache.IncrBy(10).Val()
     // 使用 Incr的方式不方便设置过期，所以可以自行判断首次增长值
     if v == 10 {
       cache.Expire(time.Minute)
     }
     ```
-- `Float64` 存储浮点数。
+- `Float64` 存储浮点数，存储浮点数要注意精度问题。
   - 包含 `Set`、`SetNX`、`Get`、`IncrByFloat` 方法。
   - 示例代码
     ```go
-    cache := rds.NewFloat64[map[string]any](ctx, "key_float64")
-    v := cache.IncrByFloat(10.).Val()
+    cache := rds.NewFloat64(ctx, "key_float64")
+    defer cache.Del()
+    v := cache.IncrByFloat(0.3).Val()
+    fmt.Println(v)
     // 使用 Incr的方式不方便设置过期，所以可以自行判断首次增长值
-    if v == 10. {
+    if v == 0.3 {
       cache.Expire(time.Minute)
     }
     ```
@@ -93,6 +117,7 @@
     ```go
     // 例如存储用户某日登录情况
     cache := rds.NewBit(ctx, "key_bit:2025-01-01")
+    defer cache.Del()
     // 登录时
     cache.SetBit(uid, 1)
     // 判断某用户是否登录
@@ -104,48 +129,104 @@
     // 
     ```
 
-#### hash
+#### 2.hash
 - `HashStruct[any]` 存储任意结构体，返回数据自动转换为结构体。
-  - 包含 `SubKey`、`HSetAll`、`HSet`、`HGet`、`HMGet`、`HGetAll`、`HIncrBy`、`HIncrByFloat`、`HDel`、`HExists` 方法。
+  - 包含 `HSetAll`、`HSet`、`HGet`、`HMGet`、`HGetAll`、`HIncrBy`、`HIncrByFloat`、`HDel`、`HExists` 方法。
   - 注意⚠️：必须设置 `redis:"xx"` 标签，才能存储。忘记设置标签会报错。
   - 示例代码
     ```go
+    // 以User对象举例
     type User struct {
-      Id int
-      Name string `redis:"name"`
-      Age int `redis:"age"`
+      Id   int    `json:"id"` // id没redis标签不会存储
+      Name string `redis:"name" json:"name"`
+      Age  int    `redis:"age" json:"age"`
     }
-    u1 := User{Id: 3306, Name: "Alice", Age: 20}
-    usercache := rds.NewHashStruct[User](ctx, "key_hash_struct")
-    cache := usercache.SubKey("3306")
-    cache.SetAll(&u1, time.Minute)
-    // 获取整个
-    if u2 := cache.HGetAll().Val(); u2 != nil {
-       fmt.Println(u2.Name, u2.Age)
-    }
-    // 获取部分字段 （也返回整个结构体，但是只取需要的即可）
-    if u3 := cache.HMGet("name").Val(); u3 != nil {
-      fmt.Println(u3.Name, u3.Age)
+    u := User{Id: 3306, Name: "Alice", Age: 20}
+    cache := rds.NewHashStruct[User](ctx, "key_hash_struct")
+    defer cache.Del()
+    // 获取不存在的对象 返回nil
+    u1 := cache.HGetAll().Val()
+    fmt.Println(u1)
+    // 缓存nil对象，拿到的是空结构体。以 nil 和 空对象来区分是否存在缓存。
+    cache.HSetAll(nil, time.Minute)
+    u2 := cache.HGetAll().Val()
+    fmt.Println(u2)
+    // 设置有效对象
+    cache.HSetAll(&u, time.Minute)
+    // 增长年龄
+    cache.HIncrBy("age", 1)
+    // 获取对象
+    if u3 := cache.HGetAll().Val(); u3 != nil {
+      fmt.Println(u3)
     }
     // 修改字段
     cache.HSet(map[string]any{"age": 22}, time.Minute)
-    // 增长年龄
-    cache.IncrBy("age", 1)
+    // 获取部分字段 （也返回整个结构体，但是只取需要的即可）
+    if u4 := cache.HMGet("age").Val(); u4 != nil {
+      fmt.Println(u4)
+    }
     ```
 
-- `HashMap[cmp.Ordered]` 存储一类键值对，返回`map[string]E`，`field`必须是字符串，`value`为泛型。包含 `HSet`、`HSetNX`、`HGet`、`HMGet`、`HGetAll`、`HIncrBy`、`HIncrByFloat`、`HDel`、`HExists`、`HLen`
+- `HashMap[cmp.Ordered]` 存储一类键值对，具有统一的value类型。
+  - 包含 `HSet`、`HSetNX`、`HGet`、`HMGet`、`HGetAll`、`HIncrBy`、`HIncrByFloat`、`HDel`、`HExists`、`HLen` 方法。
+  - 示例代码
+    ```go
+    // 以 value 类型为 int 举例
+    cache := rds.NewHashMap[int](ctx, "key_hash_map")
+    defer cache.Del()
+    // 设置值（不设置过期时间，需要自己去管理）
+    cache.HSet(map[string]int{"A": 1, "B": 2, "C": 3})
+    // 增长 (注意类型为int值时，不可使用IncryByFloat)
+    cache.HIncrBy("B", 1)
+    // 删除
+    cache.HDel("C")
+    // 获取所有值
+    v1 := cache.HGetAll().Val()
+    fmt.Println(v1)
+    // 获取部分字段 （也返回整个结构体，但是只取需要的即可）
+    v2 := cache.HMGet("A", "C").Val()
+    fmt.Println(v2)
+    ```
 
-  - `list` 
-    - `List[any]` 存储队列元素。
+#### 3.list
+- `List[any]` 存储队列元素。
+  - 包含 `LPush`、`RPush`、`LPop`、`RPop`、`LSet`、`LIndex`、`LRange`、`LLen`、`LRem`、`LTrim`、
 
-  - `set` 
-    - `Set[cmp.Ordered]` 存储去重元素。包含 `SAdd`、`SIsMember`、`SMembers`、`SRandMember`、`SCard`、`SPop`、`SRem`方法。
+#### 4.set
+- `Set[cmp.Ordered]` 存储去重元素
+  - 包含 `SAdd`、`SIsMember`、`SMembers`、`SRandMember`、`SCard`、`SPop`、`SRem`方法。
+  - 示例代码
+    ```go
+    // 以存储string类型举例
+    cache := rds.NewSet[string](ctx, "key_set")
+    defer cache.Del()
+    // 添加
+    cache.SAdd("a", "b", "c", "d", "e", "f", "g")
+    // 元素个数
+    size := cache.SCard().Val()
+    fmt.Println(size)
+    // 是否存在
+    exists := cache.SIsMember("a").Val()
+    fmt.Println(exists)
+    // 随机返回2个成员（不删除，会重复）
+    v1 := cache.SRandMember(2).Val()
+    fmt.Println(v1)
+    // 随机返回2个成员（会删除）
+    v2 := cache.SPop(2).Val()
+    fmt.Println(v2)
+    // 返回所有成员(注意控制返回的数量不要巨大)
+    v3 := cache.SMembers().Val()
+    fmt.Println(v3)
+    ```
 
-  - `sorted set` 
-    - `SortedSet[cmp.Ordered]` 存储积分排序元素。包含 `ZAdd`、`ZIncrBy`、`ZCard`、`ZCountByScore`、`ZScore`、`ZIndex`、`ZMembersByScore`、`ZMembersByIndex`、`ZRangeByScore`、`ZRangeByIndex`、`ZRem`、`ZRemByIndex`、`ZRemByIndex`方法。
+#### 5.sorted set
+- `SortedSet[cmp.Ordered]` 
+  - `SortedSet[cmp.Ordered]` 存储积分排序元素。
+  - 包含 `ZAdd`、`ZIncrBy`、`ZCard`、`ZCountByScore`、`ZScore`、`ZIndex`、`ZMembersByScore`、`ZMembersByIndex`、`ZRangeByScore`、`ZRangeByIndex`、`ZRem`、`ZRemByIndex`、`ZRemByIndex`方法。
+- `GEO` 经纬度坐标。
 
-  - `geo`
-    - `GEO` 经纬度坐标。 包含 
-  - `hyperloglog`
-    - `HyperLogLog` 存储基数统计。
+
+
+#### hyperloglog
+- `HyperLogLog` 存储基数统计。
 

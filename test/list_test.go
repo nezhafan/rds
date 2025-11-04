@@ -154,7 +154,7 @@ func TestListLLen(t *testing.T) {
 
 	v, err := cache.LLen().Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(2), v)
+	assert.EqualValues(t, 2, v)
 
 	cache.Del()
 }
@@ -166,7 +166,7 @@ func TestListLRange(t *testing.T) {
 	v, err := cache.LRange(0, -1).Result()
 	assert.NoError(t, err)
 	for i := range v {
-		assert.Equal(t, int(i+1), v[i])
+		assert.EqualValues(t, i+1, v[i])
 	}
 
 	cache.Del()

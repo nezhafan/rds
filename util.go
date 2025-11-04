@@ -164,39 +164,33 @@ func string2Any[E any](s string) E {
 }
 
 func any2String(v any) string {
-	switch x := v.(type) {
-	case string:
-		return x
-	case int8:
-		return strconv.Itoa(int(x))
-	case int16:
-		return strconv.Itoa(int(x))
-	case int32:
-		return strconv.Itoa(int(x))
-	case int64:
-		return strconv.Itoa(int(x))
-	case uint8:
-		return strconv.Itoa(int(x))
-	case uint16:
-		return strconv.Itoa(int(x))
-	case uint32:
-		return strconv.Itoa(int(x))
-	case uint64:
-		return strconv.Itoa(int(x))
-	case float32:
-		return strconv.FormatFloat(float64(x), 'f', -1, 32)
-	case float64:
-		return strconv.FormatFloat(x, 'f', -1, 64)
-	case bool:
-		return strconv.FormatBool(x)
-	case nil:
+	if v == nil {
 		return null
-	case json.Marshaler:
-		b, _ := x.MarshalJSON()
-		return bytes2String(b)
+	}
+
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr {
+		rv = rv.Elem()
+	}
+
+	switch rv.Kind() {
+	case reflect.String:
+		return rv.String()
+	case reflect.Bool:
+		return strconv.FormatBool(rv.Bool())
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return strconv.FormatInt(rv.Int(), 10)
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return strconv.FormatUint(rv.Uint(), 10)
 	default:
-		b, _ := json.Marshal(x)
-		return bytes2String(b)
+		switch x := v.(type) {
+		case json.Marshaler:
+			b, _ := x.MarshalJSON()
+			return bytes2String(b)
+		default:
+			b, _ := json.Marshal(x)
+			return bytes2String(b)
+		}
 	}
 }
 

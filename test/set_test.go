@@ -44,6 +44,7 @@ func TestSet_SMembers(t *testing.T) {
 	assert.EqualValues(t, []int64{1, 2, 3}, v)
 
 	cache.Del()
+
 }
 
 func TestSet_SRandMember(t *testing.T) {
@@ -96,5 +97,17 @@ func TestSet_SRem(t *testing.T) {
 	assert.NoError(t, err)
 	assert.EqualValues(t, 1, v)
 
+	cache.Del()
+}
+
+func BenchmarkSet_SMembers(b *testing.B) {
+	cache := newSet[User]()
+	items := make([]User, 0, b.N)
+	for i := 0; i < b.N; i++ {
+		items = append(items, testHashUser)
+	}
+	cache.SAdd(items...)
+
+	_ = cache.SMembers().Val()
 	cache.Del()
 }

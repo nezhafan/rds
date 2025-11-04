@@ -29,10 +29,6 @@ type Mutex struct {
 - 单锁的最大过期时间为60秒，不主动续约，需要自己估计业务时常是否会超过这个值，自己去开定时器利用可重入特性再次Lock
 */
 func NewMutex(ctx context.Context, key string) *Mutex {
-	_, ok := ctx.Deadline()
-	if !ok {
-		panic("参数上下文必须设置超时时间")
-	}
 	return &Mutex{
 		base: NewBase(ctx, key),
 		id:   strconv.Itoa(int(rd.Int31())),

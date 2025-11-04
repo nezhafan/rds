@@ -40,7 +40,7 @@ func (s *Set[E]) SMembers() SliceCmd[E] {
 	return newSliceCmd[E](cmd)
 }
 
-// 随机返回count个成员
+// 随机返回count个成员（不删除）
 func (s *Set[E]) SRandMember(count int64) SliceCmd[E] {
 	cmd := s.db().SRandMemberN(s.ctx, s.key, count)
 	s.done(cmd)
@@ -54,7 +54,7 @@ func (s *Set[E]) SCard() Int64Cmd {
 	return newInt64Cmd(cmd)
 }
 
-// 随机弹出count个成员
+// 随机弹出count个成员（会删除）
 func (s *Set[E]) SPop(count int64) SliceCmd[E] {
 	cmd := s.db().SPopN(s.ctx, s.key, count)
 	s.done(cmd)
