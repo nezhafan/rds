@@ -1,6 +1,7 @@
 package test
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/nezhafan/rds"
@@ -47,14 +48,23 @@ func TestSet_SMembers(t *testing.T) {
 
 }
 
-func TestSet_SRandMember(t *testing.T) {
-	cache := newSet[int64]()
-	cache.SAdd(1, 2, 3, 1)
+func TestSet_SScan(t *testing.T) {
+	cache := newSet[string]()
 
-	v, err := cache.SRandMember(2).Result()
+	const n = 200
+	vs := make([]string, 0, n)
+	for i := 0; i < n; i++ {
+		vs = append(vs, strconv.Itoa(i)+":hello")
+	}
+	cache.SAdd(vs...)
+
+	var number int
+	err := cache.SScan("", 10, func(vals []string) error {
+		number += len(vals)
+		return nil
+	})
 	assert.NoError(t, err)
-	assert.EqualValues(t, 2, len(v))
-
+	assert.Equal(t, n, number)
 	cache.Del()
 }
 

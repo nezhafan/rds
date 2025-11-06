@@ -10,7 +10,7 @@ import (
 var (
 	_ convert[int64]   = toInt64
 	_ convert[float64] = toFloat64
-	_ convert[[]int]   = toAny[[]int]
+	_ convert[[]int]   = toE[[]int]
 )
 
 type convert[E any] func(redis.Cmder) E
@@ -106,11 +106,11 @@ func newDurationCmd(cmd redis.Cmder) DurationCmd {
 }
 
 type JSONCmd[E any] struct {
-	cmdR[E]
+	cmdR[*E]
 }
 
 func newJSONCmd[E any](cmd *redis.StringCmd) JSONCmd[E] {
-	return JSONCmd[E]{newCmdR(cmd, toAny[E])}
+	return JSONCmd[E]{newCmdR(cmd, toStructPtr[E])}
 }
 
 type AnyCmd[E any] struct {
@@ -118,7 +118,7 @@ type AnyCmd[E any] struct {
 }
 
 func newAnyCmd[E any](cmd *redis.StringCmd) AnyCmd[E] {
-	return AnyCmd[E]{newCmdR(cmd, toAny[E])}
+	return AnyCmd[E]{newCmdR(cmd, toE[E])}
 }
 
 type SliceCmd[E any] struct {
@@ -126,7 +126,7 @@ type SliceCmd[E any] struct {
 }
 
 func newSliceCmd[E any](cmd redis.Cmder) SliceCmd[E] {
-	return SliceCmd[E]{newCmd(cmd, slice2Any[E])}
+	return SliceCmd[E]{newCmd(cmd, toEs[E])}
 }
 
 type ZSliceCmd[E cmp.Ordered] struct {
@@ -171,7 +171,8 @@ func newStructCmd[E any](cmd redis.Cmder, fields []string) StructCmd[E] {
 }
 
 func (c StructCmd[E]) Val() *E {
-	return toStruct[E](c.cmd, c.fields)
+	_, v := toStruct[E](c.cmd, c.fields)
+	return v
 }
 
 func (c StructCmd[E]) Err() error {
@@ -180,6 +181,11 @@ func (c StructCmd[E]) Err() error {
 
 func (c StructCmd[E]) Result() (obj *E, err error) {
 	return c.Val(), c.Err()
+}
+
+func (c StructCmd[E]) R() (exists bool, obj *E, err error) {
+	exists, v := toStruct[E](c.cmd, c.fields)
+	return exists, v, c.Err()
 }
 
 type GeoPos = redis.GeoPos

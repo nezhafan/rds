@@ -33,21 +33,6 @@
     if !mu.Lock() {
       return errors.New("没拿到锁，上下文超时了")
     }
-
-    /* 如果业务处理时间很久，很可能超过60秒，为了防止锁过期被其它请求获取，可以开定时任务加可重入锁
-    go func() {
-      ticker := time.NewTicker(time.Second * 2)
-      defer ticker.Stop()
-      for range ticker.C {
-        select {
-        case <-ctx.Done():
-          return
-        default:
-          mu.Lock()
-        }
-      }
-    }()
-    */
     defer mu.Unlock()
     // 业务逻辑...
     ```
@@ -131,7 +116,7 @@
 
 #### 2.hash
 - `HashStruct[any]` 存储任意结构体，返回数据自动转换为结构体。
-  - 包含 `HSetAll`、`HSet`、`HGet`、`HMGet`、`HGetAll`、`HIncrBy`、`HIncrByFloat`、`HDel`、`HExists` 方法。
+  - 包含 `HSet`、`HGet`、`HMGet`、`HGetAll` 方法。 
   - 注意⚠️：必须设置 `redis:"xx"` 标签，才能存储。忘记设置标签会报错。
   - 示例代码
     ```go
@@ -144,27 +129,23 @@
     u := User{Id: 3306, Name: "Alice", Age: 20}
     cache := rds.NewHashStruct[User](ctx, "key_hash_struct")
     defer cache.Del()
-    // 获取不存在的对象 返回nil
-    u1 := cache.HGetAll().Val()
-    fmt.Println(u1)
-    // 缓存nil对象，拿到的是空结构体。以 nil 和 空对象来区分是否存在缓存。
-    cache.HSetAll(nil, time.Minute)
-    u2 := cache.HGetAll().Val()
-    fmt.Println(u2)
+    // 获取不存在的对象 返回nil，告知无缓存
+    exists, u1, err := cache.HGetAll().R()
+    fmt.Println(exists, u1, err)
+    // 缓存nil对象，返回nil，告知有缓存
+    cache.HSet(nil, time.Minute)
+    exists, u2, err := cache.HGetAll().R()
+    fmt.Println(exists, u2, err)
     // 设置有效对象
-    cache.HSetAll(&u, time.Minute)
-    // 增长年龄
-    cache.HIncrBy("age", 1)
-    // 获取对象
-    if u3 := cache.HGetAll().Val(); u3 != nil {
-      fmt.Println(u3)
-    }
-    // 修改字段
-    cache.HSet(map[string]any{"age": 22}, time.Minute)
+    cache.HSet(&u, time.Minute)
+    exists, u3, err := cache.HGetAll().R()
+    fmt.Println(exists, u3, err)
+    // 获取单个字段 （也返回整个结构体，但是只取需要的即可）
+    age := cache.HGet("age").Val()
+    fmt.Println(age)
     // 获取部分字段 （也返回整个结构体，但是只取需要的即可）
-    if u4 := cache.HMGet("age").Val(); u4 != nil {
-      fmt.Println(u4)
-    }
+    exists, u4, err := cache.HMGet("age").R()
+    fmt.Println(exists, u4, err)
     ```
 
 - `HashMap[cmp.Ordered]` 存储一类键值对，具有统一的value类型。
@@ -190,11 +171,44 @@
 
 #### 3.list
 - `List[any]` 存储队列元素。
-  - 包含 `LPush`、`RPush`、`LPop`、`RPop`、`LSet`、`LIndex`、`LRange`、`LLen`、`LRem`、`LTrim`、
+  - 包含 `LPush`、`RPush`、`LPop`、`RPop`、`LSet`、`LIndex`、`LRange`、`LLen`、`LRem`、`LTrim`
+  - 示例代码LLen
+    ```go
+    cache := rds.NewList[string](ctx, "key_list")
+    defer cache.Del()
+    // 加入队列
+    cache.RPush("a", "b", "c")
+    // 取出队列
+    exists, v, err := cache.LPop().R()
+    fmt.Println(exists, v, err)
+    // 查看队列数量
+    size := cache.LLen().Val()
+    fmt.Println(size)
+    // 遍历队列
+    vals := cache.LRange(0, -1).Val()
+    fmt.Println(vals)
+    ```
+    ```go
+    // 支持可JSON化的类型
+    cache := rds.NewList[[]string](ctx, "key_list_2")
+    defer cache.Del()
+    // 加入队列
+    cache.RPush([]string{"a"}, []string{"b", "c"}, []string{"d"})
+    // 取出队列
+    exists, v, err := cache.LPop().R()
+    fmt.Println(exists, v, err)
+    // 查看队列数量
+    size := cache.LLen().Val()
+    fmt.Println(size)
+    // 遍历队列
+    vals2 := cache.LRange(0, -1).Val()
+    fmt.Println(vals2)
+    ```
+
 
 #### 4.set
 - `Set[cmp.Ordered]` 存储去重元素
-  - 包含 `SAdd`、`SIsMember`、`SMembers`、`SRandMember`、`SCard`、`SPop`、`SRem`方法。
+  - 包含 `SAdd`、`SIsMember`、`SMembers`、`SScan`、`SCard`、`SPop`、`SRem`方法。
   - 示例代码
     ```go
     // 以存储string类型举例
@@ -208,23 +222,24 @@
     // 是否存在
     exists := cache.SIsMember("a").Val()
     fmt.Println(exists)
-    // 随机返回2个成员（不删除，会重复）
-    v1 := cache.SRandMember(2).Val()
+    // 随机删除并返回n个成员
+    v1 := cache.SPop(2).Val()
     fmt.Println(v1)
-    // 随机返回2个成员（会删除）
-    v2 := cache.SPop(2).Val()
-    fmt.Println(v2)
     // 返回所有成员(注意控制返回的数量不要巨大)
-    v3 := cache.SMembers().Val()
-    fmt.Println(v3)
+    v2 := cache.SMembers().Val()
+    fmt.Println(v2)
+    // 数量巨大可以使用游标，多次查看
+    err := cache.SScan("", 10, func(vals []string) error {
+      fmt.Println(vals)
+      return nil
+    })
+    fmt.Println(err)
     ```
 
 #### 5.sorted set
-- `SortedSet[cmp.Ordered]` 
-  - `SortedSet[cmp.Ordered]` 存储积分排序元素。
+- `SortedSet[cmp.Ordered]` 存储积分排序元素。
   - 包含 `ZAdd`、`ZIncrBy`、`ZCard`、`ZCountByScore`、`ZScore`、`ZIndex`、`ZMembersByScore`、`ZMembersByIndex`、`ZRangeByScore`、`ZRangeByIndex`、`ZRem`、`ZRemByIndex`、`ZRemByIndex`方法。
-- `GEO` 经纬度坐标。
-
+- `GEO` 存储经纬度坐标。
 
 
 #### hyperloglog

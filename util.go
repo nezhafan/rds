@@ -25,7 +25,7 @@ func string2Bytes(s string) []byte {
 	return []byte(s)
 }
 
-func structToAnys(obj any) []any {
+func struct2Anys(obj any) []any {
 	v := reflect.ValueOf(obj)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -49,15 +49,7 @@ func structToAnys(obj any) []any {
 	return result
 }
 
-func mapToAnys(vals map[string]any) []any {
-	anys := make([]any, 0, len(vals)*2)
-	for key, val := range vals {
-		anys = append(anys, key, val)
-	}
-	return anys
-}
-
-func slice2Any[E any](cmder redis.Cmder) (output []E) {
+func toEs[E any](cmder redis.Cmder) (output []E) {
 	switch c := cmder.(type) {
 	case *redis.StringSliceCmd:
 		val := c.Val()
@@ -66,7 +58,7 @@ func slice2Any[E any](cmder redis.Cmder) (output []E) {
 		}
 		output = make([]E, 0, len(val))
 		for i := range val {
-			output = append(output, string2Any[E](val[i]))
+			output = append(output, string2E[E](val[i]))
 		}
 	case *redis.SliceCmd:
 		val := c.Val()
@@ -79,13 +71,13 @@ func slice2Any[E any](cmder redis.Cmder) (output []E) {
 			if !ok {
 				return nil
 			}
-			output = append(output, string2Any[E](s))
+			output = append(output, string2E[E](s))
 		}
 	}
 	return output
 }
 
-func sliceToAnys[E any](vals []E) []any {
+func slice2Anys[E any](vals []E) []any {
 	anys := make([]any, len(vals))
 	for i := range vals {
 		anys[i] = vals[i]
@@ -102,7 +94,7 @@ func sliceToAnys[E any](vals []E) []any {
 	return anys
 }
 
-func string2Any[E any](s string) E {
+func string2E[E any](s string) E {
 	var e E
 	if s == "" {
 		return e
@@ -259,13 +251,26 @@ func toBool(cmder redis.Cmder) bool {
 	}
 }
 
-func toAny[E any](cmder redis.Cmder) E {
+func toE[E any](cmder redis.Cmder) E {
 	c, ok := cmder.(*redis.StringCmd)
 	if !ok {
 		var e E
 		return e
 	}
-	return string2Any[E](c.Val())
+	return string2E[E](c.Val())
+}
+
+func toStructPtr[E any](cmder redis.Cmder) *E {
+	c, ok := cmder.(*redis.StringCmd)
+	if !ok {
+		return nil
+	}
+	if c.Val() == "" || c.Val() == null {
+		return nil
+	}
+	obj := new(E)
+	json.Unmarshal(string2Bytes(c.Val()), obj)
+	return obj
 }
 
 func toMap[E cmp.Ordered](cmder redis.Cmder, fields []string) (mp map[string]E) {
@@ -277,53 +282,55 @@ func toMap[E cmp.Ordered](cmder redis.Cmder, fields []string) (mp map[string]E) 
 		val := c.Val()
 		mp = make(map[string]E, len(val))
 		for field, v := range val {
-			mp[field] = string2Any[E](v)
+			mp[field] = string2E[E](v)
 		}
 	case *redis.SliceCmd:
 		val := c.Val()
 		mp = make(map[string]E, len(val))
 		for i, v := range val {
 			if s, ok := v.(string); ok {
-				mp[fields[i]] = string2Any[E](s)
+				mp[fields[i]] = string2E[E](s)
 			}
 		}
 	}
 	return
 }
 
-func toStruct[E any](cmder redis.Cmder, fields []string) *E {
+func toStruct[E any](cmder redis.Cmder, fields []string) (exists bool, obj *E) {
 	if cmder == nil {
-		return nil
+		return
 	}
 	var mp map[string]string
 	switch c := cmder.(type) {
 	case *redis.MapStringStringCmd:
 		if c == nil || len(c.Val()) == 0 {
-			return nil
+			return
 		}
 		// 判断缓存空值
 		if len(c.Val()) == 1 {
+			exists = true
 			if _, ok := c.Val()[emptyField]; ok {
-				return nil
+				return
 			}
 		}
 		mp = c.Val()
 	case *redis.SliceCmd:
 		if c == nil || len(c.Val()) == 0 {
-			return nil
+			return
 		}
 		mp = make(map[string]string, len(c.Val()))
+		exists = len(c.Val()) > 0
 		for i, val := range c.Val() {
 			if s, ok := val.(string); ok {
 				mp[fields[i]] = s
 			}
 		}
 	default:
-		return nil
+		return
 	}
-	obj := new(E)
+	obj = new(E)
 	if len(mp) == 0 {
-		return obj
+		return
 	}
 	v := reflect.ValueOf(obj).Elem()
 	t := v.Type()
@@ -376,7 +383,7 @@ func toStruct[E any](cmder redis.Cmder, fields []string) *E {
 			}
 		}
 	}
-	return obj
+	return
 }
 
 func toZSlice[E cmp.Ordered](cmder redis.Cmder) []Z[E] {
@@ -388,7 +395,7 @@ func toZSlice[E cmp.Ordered](cmder redis.Cmder) []Z[E] {
 	for _, v := range c.Val() {
 		var member E
 		if v, ok := v.Member.(string); ok {
-			member = string2Any[E](v)
+			member = string2E[E](v)
 		}
 		list = append(list, Z[E]{
 			Score:  v.Score,

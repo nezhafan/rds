@@ -26,7 +26,7 @@ zadd key [nx|xx] [ch] score member (可选参数仅6.2.0以上支持)
 func (g *Geo) GeoAdd(locations map[string]GeoPos, params ...string) Int64Cmd {
 	args := make([]any, 0, len(locations)*3+4)
 	args = append(args, "geoadd", g.key)
-	if IsReachVersion62 {
+	if IsAboveVersion62 {
 		if len(params) > 0 {
 			args = append(args, params[0])
 		}
@@ -129,7 +129,7 @@ func (g *Geo) GeoSearchByMember(member string, radius float64, count int64, q *G
 }
 
 func (g *Geo) GeoDel(members ...string) Int64Cmd {
-	args := sliceToAnys(members)
+	args := slice2Anys(members)
 	cmd := g.db().ZRem(g.ctx, g.key, args...)
 	g.done(cmd)
 	return newInt64Cmd(cmd)

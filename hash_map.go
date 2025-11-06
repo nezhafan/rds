@@ -45,6 +45,9 @@ func (h *HashMap[E]) HGet(field string) AnyCmd[E] {
 }
 
 func (h *HashMap[E]) HMGet(fields ...string) MapCmd[E] {
+	if len(fields) == 0 {
+		return h.HGetAll()
+	}
 	cmd := h.db().HMGet(h.ctx, h.key, fields...)
 	h.done(cmd)
 	return newMapCmd[E](cmd, fields)

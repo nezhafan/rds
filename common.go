@@ -35,7 +35,7 @@ var (
 	// 版本号
 	versionCurrent string
 	// 达到 6.2.0 版本
-	IsReachVersion62 bool
+	IsAboveVersion62 bool
 )
 
 // DEBUG模式开启/关闭，打印请求和返回。（不要在生产环境开启）
@@ -72,11 +72,11 @@ func initInfo() {
 			break
 		}
 	}
-	IsReachVersion62 = IsReachVersion(version62)
+	IsAboveVersion62 = IsAboveVersion(version62)
 }
 
 // 当前连接redis是否达到目标版本
-func IsReachVersion(targetVerion string) bool {
+func IsAboveVersion(targetVerion string) bool {
 	cv := Version()
 	if cv == targetVerion {
 		return true

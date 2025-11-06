@@ -59,17 +59,14 @@ func TestJSON_Get(t *testing.T) {
 	// 测试无缓存
 	exists, v1, err := cache1.Get().R()
 	assert.Nil(t, err)
-	assert.EqualValues(t, User{}, v1)
+	assert.Nil(t, v1)
 	assert.False(t, exists)
 
 	// 测试缓存nil
 	cache1.Set(nil, time.Second)
-	v1, err = cache1.Get().Result()
-	assert.Nil(t, err)
-	assert.Equal(t, "", v1.Name)
 	exists, v1, err = cache1.Get().R()
 	assert.Nil(t, err)
-	assert.Equal(t, "", v1.Name)
+	assert.Nil(t, v1)
 	assert.True(t, exists)
 
 	// 测试有值结构体
@@ -89,7 +86,7 @@ func TestJSON_Get(t *testing.T) {
 	cache2.Set(&[]int{1, 2}, time.Second)
 	v2, err := cache2.Get().Result()
 	assert.NoError(t, err)
-	assert.EqualValues(t, []int{1, 2}, v2)
+	assert.EqualValues(t, &[]int{1, 2}, v2)
 	cache2.Del()
 
 	// === 测试map ===
@@ -97,6 +94,6 @@ func TestJSON_Get(t *testing.T) {
 	cache3.Set(&map[string]any{"a": 1, "b": "2"}, time.Second)
 	v3, err := cache3.Get().Result()
 	assert.NoError(t, err)
-	assert.EqualValues(t, map[string]any{"a": 1.0, "b": "2"}, v3)
+	assert.EqualValues(t, &map[string]any{"a": 1.0, "b": "2"}, v3)
 	cache3.Del()
 }

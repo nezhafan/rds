@@ -13,7 +13,7 @@ var (
 	// 默认锁过期时间(秒)
 	defaultExpireSecond = 60
 	// 重试间隔(毫秒)，斐波那契数列
-	retryIntervals = []int{5, 5, 10, 20, 30, 50, 80, 130}
+	retryIntervals = []int{5, 5, 10, 20, 30, 50, 80, 130, 210}
 )
 
 type Mutex struct {
@@ -24,7 +24,7 @@ type Mutex struct {
 /*
 分布式锁
 - 可重入锁：不同用户请求应该每次都New而不是使用同一个Mutex实例
-- 重试机制：使用斐波那契数列 5ms,5ms,10ms,20ms...最大130ms + 随机0到自身随机值 的间隔一直重试
+- 重试机制：使用斐波那契数列 5ms,5ms,10ms,20ms...260ms + 随机0到自身随机值 的间隔一直重试，直到拿到锁或上下文时间耗尽
 - ctx 不要传context.Background()，需要传一个带超时的context
 - 单锁的最大过期时间为60秒，不主动续约，需要自己估计业务时常是否会超过这个值，自己去开定时器利用可重入特性再次Lock
 */
@@ -52,9 +52,9 @@ func (m *Mutex) TryLock() bool {
 	ok := err == nil && resp.(string) == "OK"
 	if isDebugOpen.Load() {
 		if ok {
-			writer.WriteString(m.id + " 加锁成功\n")
+			writer.WriteString(m.key + " " + m.id + " 加锁成功\n")
 		} else {
-			writer.WriteString(m.id + " 加锁失败\n")
+			writer.WriteString(m.key + " " + m.id + " 加锁失败\n")
 		}
 	}
 	return ok
@@ -74,7 +74,7 @@ func (m *Mutex) Lock() bool {
 			milli := retryIntervals[min(retry, len(retryIntervals)-1)]
 			milli += rd.Intn(milli) // 加上0到自身的随机值
 			if isDebugOpen.Load() {
-				writer.WriteString(m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
+				writer.WriteString(m.key + " " + m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
 			}
 			time.Sleep(time.Duration(milli) * time.Millisecond)
 			retry++
@@ -95,6 +95,6 @@ end
 func (m *Mutex) Unlock() {
 	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
 	if isDebugOpen.Load() {
-		writer.WriteString(m.id + " 解锁\n")
+		writer.WriteString(m.key + " " + m.id + " 解锁\n")
 	}
 }

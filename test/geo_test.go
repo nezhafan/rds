@@ -29,7 +29,7 @@ func TestGeo_GeoAdd(t *testing.T) {
 	assert.EqualValues(t, 1, v)
 
 	// 6.2.0 版本以上模式
-	if rds.IsReachVersion62 {
+	if rds.IsAboveVersion62 {
 		// 仅新增
 		v, err = g.GeoAdd(map[string]rds.GeoPos{
 			"Alice": {Longitude: 101.390, Latitude: 30.916},

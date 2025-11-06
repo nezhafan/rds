@@ -121,25 +121,25 @@ func TestSortedSet_ZScore(t *testing.T) {
 	cache.Del()
 }
 
-func TestSortedSet_ZIndex(t *testing.T) {
+func TestSortedSet_ZRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
 	// 从小到大排
-	v, err := cache.ZIndex("a", false).Result()
+	v, err := cache.ZRank("a", false).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, int64(0), v)
 
-	v, err = cache.ZIndex("c", false).Result()
+	v, err = cache.ZRank("c", false).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), v)
 
-	v, err = cache.ZIndex("d", false).Result()
+	v, err = cache.ZRank("d", false).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), v)
 
 	// 从大到小排序
-	v, err = cache.ZIndex("a", true).Result()
+	v, err = cache.ZRank("a", true).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, int64(3), v)
 
@@ -151,42 +151,42 @@ func TestSortedSet_ZMembersByScore(t *testing.T) {
 	cache.ZAdd(zsetData)
 
 	// 正序
-	v, err := cache.ZMembersByScore(2.2, 4.4, 0, 2).Result()
+	v, err := cache.ZMembersByScore(2.2, 4.4, false, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"b", "c"}, v)
 
 	// 正序偏移
-	v, err = cache.ZMembersByScore(2.2, 4.4, 1, 1).Result()
+	v, err = cache.ZMembersByScore(2.2, 4.4, false, 1, 1).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"c"}, v)
 
 	// 倒序
-	v, err = cache.ZMembersByScore(4.4, 2.2, 0, 2).Result()
+	v, err = cache.ZMembersByScore(4.4, 2.2, true, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"d", "c"}, v)
 
 	// 倒序偏移
-	v, err = cache.ZMembersByScore(4.4, 2.2, 1, 1).Result()
+	v, err = cache.ZMembersByScore(4.4, 2.2, true, 1, 1).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"c"}, v)
 
 	cache.Del()
 }
 
-func TestSortedSet_ZMembersByIndex(t *testing.T) {
+func TestSortedSet_ZMembersByRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZMembersByIndex(0, 1, false).Result()
+	v, err := cache.ZMembersByRank(0, 1, false).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"a", "b"}, v)
 
-	v, err = cache.ZMembersByIndex(0, 1, true).Result()
+	v, err = cache.ZMembersByRank(0, 1, true).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"d", "c"}, v)
 
 	// 正序偏移
-	v, err = cache.ZMembersByIndex(-1, -1, false).Result()
+	v, err = cache.ZMembersByRank(-1, -1, false).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"d"}, v)
 
@@ -197,26 +197,26 @@ func TestSortedSet_ZRangeByScore(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZRangeByScore(2.2, 3.3, 0, 2).Result()
+	v, err := cache.ZRangeByScore(2.2, 3.3, false, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "b", Score: 2.2}, {Member: "c", Score: 3.3}}, v)
 
-	v, err = cache.ZRangeByScore(3.3, 2.2, 0, 2).Result()
+	v, err = cache.ZRangeByScore(2.2, 3.3, true, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "c", Score: 3.3}, {Member: "b", Score: 2.2}}, v)
 
 	cache.Del()
 }
 
-func TestSortedSet_ZRangeByIndex(t *testing.T) {
+func TestSortedSet_ZRangeByRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZRangeByIndex(0, 1, false).Result()
+	v, err := cache.ZRangeByRank(0, 1, false).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "a", Score: 0.3}, {Member: "b", Score: 2.2}}, v)
 
-	v, err = cache.ZRangeByIndex(0, 1, true).Result()
+	v, err = cache.ZRangeByRank(0, 1, true).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "d", Score: 4.4}, {Member: "c", Score: 3.3}}, v)
 
@@ -231,7 +231,7 @@ func TestSortedSet_ZRem(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), v)
 
-	arr, err := cache.ZMembersByScore(0, 100, 0, 0).Result()
+	arr, err := cache.ZMembersByScore(0, 100, false, 0, 0).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"c", "d"}, arr)
 
@@ -246,24 +246,32 @@ func TestSortedSet_ZRemByScore(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), v)
 
-	arr, err := cache.ZMembersByScore(0, 100, 0, 0).Result()
+	arr, err := cache.ZMembersByScore(0, 100, false, 0, 0).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"a", "d"}, arr)
 
 	cache.Del()
 }
 
-func TestSortedSet_ZRemByIndex(t *testing.T) {
+func TestSortedSet_ZRemByRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZRemByIndex(1, -1).Result()
+	// 移除 a
+	v, err := cache.ZRemByRank(0, 0).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(3), v)
+	assert.EqualValues(t, 1, v)
+	arr, err := cache.ZMembersByScore(0, 100, false, 0, 0).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"b", "c", "d"}, arr)
 
-	arr, err := cache.ZMembersByScore(0, 100, 0, 0).Result()
+	// 移除d
+	v, err = cache.ZRemByRank(-1, -1).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"a"}, arr)
+	assert.EqualValues(t, 1, v)
+	arr, err = cache.ZMembersByScore(0, 100, false, 0, 0).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"b", "c"}, arr)
 
 	cache.Del()
 }

@@ -22,10 +22,10 @@ func newHashStruct() *rds.HashStruct[User] {
 	return hm
 }
 
-func TestHashStruct_HSetAll(t *testing.T) {
+func TestHashStruct_HSet(t *testing.T) {
 	hm := newHashStruct()
 
-	val, err := hm.HSetAll(&testHashUser, time.Minute).Result()
+	val, err := hm.HSet(&testHashUser, time.Minute).Result()
 	assert.NoError(t, err)
 	assert.True(t, val)
 
@@ -37,24 +37,9 @@ func TestHashStruct_HSetAll(t *testing.T) {
 	hm.Del()
 }
 
-func TestHashStruct_HSet(t *testing.T) {
-	hm := newHashStruct()
-
-	// 不执行
-	val, err := hm.HSet(nil, time.Minute).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(0), val)
-
-	val, err = hm.HSet(map[string]any{"name": "Bob", "age": 21, "": ""}, time.Minute).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(3), val)
-
-	hm.Del()
-}
-
 func TestHashStruct_HGet(t *testing.T) {
 	hm := newHashStruct()
-	hm.HSetAll(&testHashUser, time.Minute)
+	hm.HSet(&testHashUser, time.Minute)
 
 	exists, val, err := hm.HGet("name").R()
 	assert.NoError(t, err)
@@ -68,33 +53,26 @@ func TestHashStruct_HGet(t *testing.T) {
 	hm.Del()
 }
 
-func TestHashStruct_HMGet(t *testing.T) {
-	hm := newHashStruct()
-	hm.HSetAll(&testHashUser, time.Minute)
-	hm.HSet(map[string]any{"name": "", "likes": "", "pet": "", "guns": nil}, time.Minute)
-
-	val, err := hm.HMGet("name", "age", "xxx").Result()
-	assert.NoError(t, err)
-	assert.Equal(t, "", val.Name)
-	assert.Nil(t, val.Pet)
-	assert.Nil(t, val.Likes)
-	assert.Nil(t, val.Guns)
-	assert.Equal(t, testHashUser.Age, val.Age)
-
-	hm.Del()
-}
-
 func TestHashStruct_HGetAll(t *testing.T) {
-	hm := newHashStruct()
+	cache := newHashStruct()
 
 	// 无缓存
-	val, err := hm.HGetAll().Result()
+	exists, val, err := cache.HGetAll().R()
 	assert.NoError(t, err)
 	assert.Nil(t, val)
+	assert.False(t, exists)
 
-	hm.HSetAll(&testHashUser, time.Minute)
+	// 缓存nil
+	cache.HSet(nil, time.Minute)
+	exists, val, err = cache.HGetAll().R()
+	assert.NoError(t, err)
+	assert.Nil(t, val)
+	assert.True(t, exists)
+	cache.Del()
 
-	val, err = hm.HGetAll().Result()
+	// 缓存有效值
+	cache.HSet(&testHashUser, time.Minute)
+	val, err = cache.HGetAll().Result()
 	assert.NoError(t, err)
 	assert.Equal(t, "Alice", val.Name)
 	assert.Equal(t, age(20), val.Age)
@@ -104,52 +82,20 @@ func TestHashStruct_HGetAll(t *testing.T) {
 	assert.Equal(t, 1, len(val.Guns))
 	assert.Empty(t, val.Nothing)
 
-	// 缓存nil
-	hm.HSetAll(nil, time.Minute)
-	val, err = hm.HGetAll().Result()
-	assert.NoError(t, err)
-	assert.Nil(t, val)
-
-	hm.Del()
+	cache.Del()
 }
 
-func TestHashStruct_HIncrBy(t *testing.T) {
+func TestHashStruct_HMGet(t *testing.T) {
 	hm := newHashStruct()
-	hm.HSetAll(&testHashUser, time.Minute)
+	hm.HSet(&testHashUser, time.Minute)
 
-	val, err := hm.HIncrBy("money", 100).Result()
+	val, err := hm.HMGet("name", "age", "xxx").Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(100), val)
-
-	val2, err := hm.HIncrByFloat("money", 33.3).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, float64(133.3), val2)
-
-	hm.Del()
-}
-
-func TestHashStruct_HDel(t *testing.T) {
-	hm := newHashStruct()
-	hm.HSetAll(&testHashUser, time.Minute)
-
-	val, err := hm.HDel("likes", "age", "nothing").Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(2), val)
-
-	hm.Del()
-}
-
-func TestHashStruct_HExists(t *testing.T) {
-	hm := newHashStruct()
-	hm.HSetAll(&testHashUser, time.Minute)
-
-	val, err := hm.HExists("name").Result()
-	assert.NoError(t, err)
-	assert.True(t, val)
-
-	val, err = hm.HExists("nothing").Result()
-	assert.NoError(t, err)
-	assert.False(t, val)
+	assert.Equal(t, testHashUser.Name, val.Name)
+	assert.Nil(t, val.Pet)
+	assert.Nil(t, val.Likes)
+	assert.Nil(t, val.Guns)
+	assert.Equal(t, testHashUser.Age, val.Age)
 
 	hm.Del()
 }

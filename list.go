@@ -17,7 +17,7 @@ func (l *List[E]) LPush(vals ...E) Int64Cmd {
 	if len(vals) == 0 {
 		return l.LLen()
 	}
-	args := sliceToAnys(vals)
+	args := slice2Anys(vals)
 	cmd := l.db().LPush(l.ctx, l.key, args...)
 	l.done(cmd)
 	return newInt64Cmd(cmd)
@@ -28,7 +28,7 @@ func (l *List[E]) RPush(vals ...E) Int64Cmd {
 	if len(vals) == 0 {
 		return l.LLen()
 	}
-	args := sliceToAnys(vals)
+	args := slice2Anys(vals)
 	cmd := l.db().RPush(l.ctx, l.key, args...)
 	l.done(cmd)
 	return newInt64Cmd(cmd)
