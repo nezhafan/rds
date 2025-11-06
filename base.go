@@ -70,9 +70,9 @@ func (b *base) TTL() DurationCmd {
 
 func (b *base) done(cmd redis.Cmder) {
 	// 开发模式打印命令和结果
-	if isDebugOpen.Load() {
-		writer.WriteString(cmd.String())
-		writer.WriteString("\n")
+	if isDebugMode {
+		debugWriter.WriteString(cmd.String())
+		debugWriter.WriteString("\n")
 	}
 
 	// cmd 钩子

@@ -50,11 +50,11 @@ func (m *Mutex) TryLock() bool {
 	cmd := DB().Eval(m.ctx, lockScript, []string{m.key}, m.id, defaultExpireSecond)
 	resp, err := cmd.Result()
 	ok := err == nil && resp.(string) == "OK"
-	if isDebugOpen.Load() {
+	if isDebugMode {
 		if ok {
-			writer.WriteString(m.key + " " + m.id + " 加锁成功\n")
+			debugWriter.WriteString(m.key + " " + m.id + " 加锁成功\n")
 		} else {
-			writer.WriteString(m.key + " " + m.id + " 加锁失败\n")
+			debugWriter.WriteString(m.key + " " + m.id + " 加锁失败\n")
 		}
 	}
 	return ok
@@ -73,8 +73,8 @@ func (m *Mutex) Lock() bool {
 			}
 			milli := retryIntervals[min(retry, len(retryIntervals)-1)]
 			milli += rd.Intn(milli) // 加上0到自身的随机值
-			if isDebugOpen.Load() {
-				writer.WriteString(m.key + " " + m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
+			if isDebugMode {
+				debugWriter.WriteString(m.key + " " + m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
 			}
 			time.Sleep(time.Duration(milli) * time.Millisecond)
 			retry++
@@ -94,7 +94,7 @@ end
 // 解锁，不会误解其它实例的锁
 func (m *Mutex) Unlock() {
 	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
-	if isDebugOpen.Load() {
-		writer.WriteString(m.key + " " + m.id + " 解锁\n")
+	if isDebugMode {
+		debugWriter.WriteString(m.key + " " + m.id + " 解锁\n")
 	}
 }

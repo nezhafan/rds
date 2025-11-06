@@ -1,6 +1,7 @@
 package test
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -9,7 +10,7 @@ import (
 )
 
 func TestPipe(t *testing.T) {
-	rds.SetDebug(false)
+	rds.SetDebug(false, os.Stdout)
 
 	const key = "test_pipe"
 	wg := new(sync.WaitGroup)
@@ -53,11 +54,11 @@ func TestPipe(t *testing.T) {
 
 	counter.Del()
 
-	rds.SetDebug(true)
+	rds.SetDebug(true, os.Stdout)
 }
 
 func TestTxPipe(t *testing.T) {
-	rds.SetDebug(false)
+	rds.SetDebug(false, os.Stdout)
 	const key = "test_pipe"
 	wg := new(sync.WaitGroup)
 
@@ -100,6 +101,6 @@ func TestTxPipe(t *testing.T) {
 
 	counter.Del()
 
-	rds.SetDebug(true)
+	rds.SetDebug(true, os.Stdout)
 
 }

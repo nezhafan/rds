@@ -6,7 +6,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"sync/atomic"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -27,9 +26,9 @@ var (
 	// 错误打印
 	errorHook func(err error)
 	// 开发模式
-	isDebugOpen atomic.Bool
+	isDebugMode bool
 	// 日志输出
-	writer io.StringWriter = os.Stdout
+	debugWriter io.StringWriter = os.Stdout
 	// 所有key加前缀
 	keyPrefix string
 	// 版本号
@@ -39,13 +38,10 @@ var (
 )
 
 // DEBUG模式开启/关闭，打印请求和返回。（不要在生产环境开启）
-func SetDebug(isOpen bool) {
-	isDebugOpen.Store(isOpen)
-}
-
-func SetWriter(w io.StringWriter) {
-	if w != nil {
-		writer = w
+func SetDebug(isOpen bool, writer io.StringWriter) {
+	isDebugMode = isOpen
+	if writer != nil {
+		debugWriter = writer
 	}
 }
 
