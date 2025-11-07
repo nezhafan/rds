@@ -114,7 +114,6 @@
     }
     // 查看当日登录了多少人
     cache.BitCount().Val()
-    // 
     ```
 
 #### 2.hash
@@ -288,8 +287,9 @@
   - 参考 `test/geo_test.go`
 
 
-#### hyperloglog
+#### 6.hyperloglog
 - `HyperLogLog` 存储基数统计。
   - 包含 `PFAdd`、`PFCount`、`PFMerge` 方法
+  - 使用 `type` 查看会说它是 `string` ，但是实际并非SDS，是借用了`string`类型便于处理一些其它逻辑
   - 参考 `test/hyperloglog_test.go`
 
