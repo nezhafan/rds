@@ -2,15 +2,20 @@
 - 本项目是对 `github.com/redis/go-redis/v9` 的再封装。
 - 函数按照数据类型分类。结构体形式调用，提示友好，用法清晰。
 - 类型拆分。新增了 分布式锁、整数、浮点数、布尔、JSON、结构体 存储。
-- 泛型。不需要再手动 字符串 转 数字/布尔/JSON，存储和获取自动转换。
+- 泛型。存储和获取时自动转换。
 - 删除了 `error` 可能是 `redis.Nil` 的场景，增加 `R()` 方法显式返回是否存在。
 - 复杂的方法增加了注释和传参转换，更易上手。基本避免了传参错误。
-- 辅助方法。
+- 一些方法。
+  - `Connect` 、`ConnectByOption` 连接
+  - `SetDB` 使用自定义连接，`GetDB` 获取连接。
+  - `SetDB` 如果已有更灵活的连接方式，可以连接直接拿过来。
   - `SetDebug` 把命令和结果打印出来，方便本地调试。
   - `SetPrefix`，为所有key加上前缀。
-  - `SetErrorHook` 捕捉 `error` 自定义处理日志。
+  - `SetErrorHook` 捕捉 `error` 后进行自定义处理日志。
+  - `Pipeline` 管道、`TxPipeline` 事务管道。将各类型串联起来。
 
-### 二、类型用法说明
+
+### 二、类型和用法
 > 也可参考 test 测试用例
 #### 1.string
 - `Mutex` 分布式锁（可重入）
@@ -203,7 +208,6 @@
     fmt.Println(vals2)
     ```
 
-
 #### 4.set
 - `Set[cmp.Ordered]` 存储去重元素
   - 包含 `SAdd`、`SIsMember`、`SMembers`、`SScan`、`SCard`、`SPop`、`SRem`方法。
@@ -235,11 +239,57 @@
     ```
 
 #### 5.sorted set
-- `SortedSet[cmp.Ordered]` 存储积分排序元素。
-  - 包含 `ZAdd`、`ZIncrBy`、`ZCard`、`ZCountByScore`、`ZScore`、`ZIndex`、`ZMembersByScore`、`ZMembersByIndex`、`ZRangeByScore`、`ZRangeByIndex`、`ZRem`、`ZRemByIndex`、`ZRemByIndex`方法。
-- `GEO` 存储经纬度坐标。
+- `SortedSet[cmp.Ordered]` 存储分值排序元素。
+  - 包含 `ZAdd`、`ZIncrBy`、`ZCard`、`ZCountByScore`、`ZScore`、`ZRank`、`ZMembersByScore`、`ZMembersByRank`、`ZRangeByScore`、`ZRangeByRank`、`ZRem`、`ZRemByRank`、`ZRemByRank`方法。
+  - 示例代码
+    ```go
+    cache := rds.NewSortedSet[string](ctx, "key_sorted_set")
+    defer cache.Del()
+    // 插入/修改数据 （若仅新增/仅修改/需要查看新增数或修改数，参考说或 test/sorted_set_test.go）
+    cache.ZAdd(map[string]float64{
+      "a": 1.1,
+      "b": 2.2,
+      "c": 2.2,
+      "d": 4.4,
+    })
+    // 获取 c 的分值
+    v1, err := cache.ZScore("c").Result()
+    fmt.Println(v1, err)
+    // 增加 c 的分值
+    v2, err := cache.ZIncrBy("c", 1).Result()
+    fmt.Println(v2, err)
+    // 获取 c 的分值
+    v3, err := cache.ZScore("c").Result()
+    fmt.Println(v3, err)
+    // 获取 c 的排名 (分值从高到低)
+    v4, err := cache.ZRank(rds.ScoreDESC, "c").Result()
+    fmt.Println(v4, err)
+    // 获取 c 的排名 (分值从低到高)
+    v5, err := cache.ZRank(rds.ScoreASC, "c").Result()
+    fmt.Println(v5, err)
+    // 查询前两名 （分值从高到低）
+    v6, err := cache.ZRangeByRank(rds.ScoreDESC, 0, 1).Result()
+    fmt.Println(v6, err)
+    // 查询分值在 2.2-3.3 的成员 （分值从高到低）
+    v7, err := cache.ZRangeByScore(rds.ScoreDESC, 2.2, 3.3, 0, 0).Result()
+    fmt.Println(v7, err)
+    // 查询分值区间内有多少人
+    v8, err := cache.ZCountByScore(2.2, 3.3).Result()
+    fmt.Println(v8, err)
+    // 移除 a
+    cache.ZRem("a")
+    // 移除分值最低的两个
+    cache.ZRemByRank(rds.ScoreASC, 0, 1)
+    // 移除分值在 2.2 - 3.3 的所有成员
+    cache.ZRemByScore(2.2, 3.3)
+    ```
+- `GEO` 存储经纬度坐标。 
+  - 包含 `GeoAdd`、`GeoPos`、`GeoDist`、`GeoSearchByCoord`、`GeoSearchByMember`、`GeoDel` 方法
+  - 参考 `test/geo_test.go`
 
 
 #### hyperloglog
 - `HyperLogLog` 存储基数统计。
+  - 包含 `PFAdd`、`PFCount`、`PFMerge` 方法
+  - 参考 `test/hyperloglog_test.go`
 

@@ -22,7 +22,7 @@ var (
 	rdb Cmdable
 )
 
-func DB() Cmdable {
+func GetDB() Cmdable {
 	return rdb
 }
 

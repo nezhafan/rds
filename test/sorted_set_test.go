@@ -2,6 +2,7 @@ package test
 
 import (
 	"cmp"
+	"fmt"
 	"testing"
 
 	"github.com/nezhafan/rds"
@@ -125,23 +126,19 @@ func TestSortedSet_ZRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	// 从小到大排
-	v, err := cache.ZRank("a", false).Result()
+	// 从小到大
+	v, err := cache.ZRank(rds.ScoreASC, "a").Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(0), v)
+	assert.EqualValues(t, 0, v)
 
-	v, err = cache.ZRank("c", false).Result()
+	v, err = cache.ZRank(rds.ScoreASC, "c").Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(2), v)
+	assert.EqualValues(t, 2, v)
 
-	v, err = cache.ZRank("d", false).Result()
+	// 从大到小
+	v, err = cache.ZRank(rds.ScoreDESC, "a").Result()
 	assert.NoError(t, err)
-	assert.Equal(t, int64(3), v)
-
-	// 从大到小排序
-	v, err = cache.ZRank("a", true).Result()
-	assert.NoError(t, err)
-	assert.Equal(t, int64(3), v)
+	assert.EqualValues(t, 3, v)
 
 	cache.Del()
 }
@@ -150,25 +147,15 @@ func TestSortedSet_ZMembersByScore(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	// 正序
-	v, err := cache.ZMembersByScore(2.2, 4.4, false, 0, 2).Result()
+	// 从小到大
+	v, err := cache.ZMembersByScore(rds.ScoreASC, 2.2, 4.4, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"b", "c"}, v)
 
-	// 正序偏移
-	v, err = cache.ZMembersByScore(2.2, 4.4, false, 1, 1).Result()
-	assert.NoError(t, err)
-	assert.EqualValues(t, []string{"c"}, v)
-
-	// 倒序
-	v, err = cache.ZMembersByScore(4.4, 2.2, true, 0, 2).Result()
+	// 从大到小
+	v, err = cache.ZMembersByScore(rds.ScoreDESC, 2.2, 4.4, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"d", "c"}, v)
-
-	// 倒序偏移
-	v, err = cache.ZMembersByScore(4.4, 2.2, true, 1, 1).Result()
-	assert.NoError(t, err)
-	assert.EqualValues(t, []string{"c"}, v)
 
 	cache.Del()
 }
@@ -177,18 +164,20 @@ func TestSortedSet_ZMembersByRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZMembersByRank(0, 1, false).Result()
-	assert.NoError(t, err)
-	assert.EqualValues(t, []string{"a", "b"}, v)
-
-	v, err = cache.ZMembersByRank(0, 1, true).Result()
+	// 分数高-低 前2名
+	v, err := cache.ZMembersByRank(rds.ScoreDESC, 0, 1).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []string{"d", "c"}, v)
 
-	// 正序偏移
-	v, err = cache.ZMembersByRank(-1, -1, false).Result()
+	// 分数高-低 后2名
+	v, err = cache.ZMembersByRank(rds.ScoreDESC, -2, -1).Result()
 	assert.NoError(t, err)
-	assert.EqualValues(t, []string{"d"}, v)
+	assert.EqualValues(t, []string{"b", "a"}, v)
+
+	// 分数低-高 前两名 （即分数高-低的后2名）
+	v, err = cache.ZMembersByRank(rds.ScoreASC, 0, 1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, []string{"a", "b"}, v)
 
 	cache.Del()
 }
@@ -197,11 +186,11 @@ func TestSortedSet_ZRangeByScore(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZRangeByScore(2.2, 3.3, false, 0, 2).Result()
+	v, err := cache.ZRangeByScore(rds.ScoreASC, 2.2, 3.3, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "b", Score: 2.2}, {Member: "c", Score: 3.3}}, v)
 
-	v, err = cache.ZRangeByScore(2.2, 3.3, true, 0, 2).Result()
+	v, err = cache.ZRangeByScore(rds.ScoreDESC, 2.2, 3.3, 0, 2).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "c", Score: 3.3}, {Member: "b", Score: 2.2}}, v)
 
@@ -212,13 +201,17 @@ func TestSortedSet_ZRangeByRank(t *testing.T) {
 	cache := newSortedSet[string]()
 	cache.ZAdd(zsetData)
 
-	v, err := cache.ZRangeByRank(0, 1, false).Result()
-	assert.NoError(t, err)
-	assert.EqualValues(t, []rds.Z[string]{{Member: "a", Score: 0.3}, {Member: "b", Score: 2.2}}, v)
-
-	v, err = cache.ZRangeByRank(0, 1, true).Result()
+	v, err := cache.ZRangeByRank(rds.ScoreDESC, 0, 1).Result()
 	assert.NoError(t, err)
 	assert.EqualValues(t, []rds.Z[string]{{Member: "d", Score: 4.4}, {Member: "c", Score: 3.3}}, v)
+
+	v, err = cache.ZRangeByRank(rds.ScoreDESC, -2, -1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, []rds.Z[string]{{Member: "b", Score: 2.2}, {Member: "a", Score: 0.3}}, v)
+
+	v, err = cache.ZRangeByRank(rds.ScoreASC, 0, 1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, []rds.Z[string]{{Member: "a", Score: 0.3}, {Member: "b", Score: 2.2}}, v)
 
 	cache.Del()
 }
@@ -231,7 +224,7 @@ func TestSortedSet_ZRem(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), v)
 
-	arr, err := cache.ZMembersByScore(0, 100, false, 0, 0).Result()
+	arr, err := cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"c", "d"}, arr)
 
@@ -246,7 +239,7 @@ func TestSortedSet_ZRemByScore(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, int64(2), v)
 
-	arr, err := cache.ZMembersByScore(0, 100, false, 0, 0).Result()
+	arr, err := cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
 	assert.NoError(t, err)
 	assert.Equal(t, []string{"a", "d"}, arr)
 
@@ -254,24 +247,104 @@ func TestSortedSet_ZRemByScore(t *testing.T) {
 }
 
 func TestSortedSet_ZRemByRank(t *testing.T) {
+
 	cache := newSortedSet[string]()
+
+	// 从小到大移除前两个 a b
 	cache.ZAdd(zsetData)
+	v, err := cache.ZRemByRank(rds.ScoreASC, 0, 1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, v)
+	arr, err := cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"c", "d"}, arr)
 
-	// 移除 a
-	v, err := cache.ZRemByRank(0, 0).Result()
+	// 从小到大移除后两个 c d
+	cache.ZAdd(zsetData)
+	v, err = cache.ZRemByRank(rds.ScoreASC, -2, -1).Result()
 	assert.NoError(t, err)
-	assert.EqualValues(t, 1, v)
-	arr, err := cache.ZMembersByScore(0, 100, false, 0, 0).Result()
+	assert.EqualValues(t, 2, v)
+	arr, err = cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"b", "c", "d"}, arr)
+	assert.Equal(t, []string{"a", "b"}, arr)
 
-	// 移除d
-	v, err = cache.ZRemByRank(-1, -1).Result()
+	// 从小到大 只保留前2个
+	cache.ZAdd(zsetData)
+	v, err = cache.ZRemByRank(rds.ScoreASC, 2, -1).Result()
 	assert.NoError(t, err)
-	assert.EqualValues(t, 1, v)
-	arr, err = cache.ZMembersByScore(0, 100, false, 0, 0).Result()
+	assert.EqualValues(t, 2, v)
+	arr, err = cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
 	assert.NoError(t, err)
-	assert.Equal(t, []string{"b", "c"}, arr)
+	assert.Equal(t, []string{"a", "b"}, arr)
+
+	// 从大到小移除前两个 d c
+	cache.ZAdd(zsetData)
+	v, err = cache.ZRemByRank(rds.ScoreDESC, 0, 1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, v)
+	arr, err = cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"a", "b"}, arr)
+
+	// 从大到小移除后两个 b a
+	cache.ZAdd(zsetData)
+	v, err = cache.ZRemByRank(rds.ScoreDESC, -2, -1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, v)
+	arr, err = cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"c", "d"}, arr)
+
+	// 从大到小 只保留前2个
+	cache.ZAdd(zsetData)
+	v, err = cache.ZRemByRank(rds.ScoreDESC, 2, -1).Result()
+	assert.NoError(t, err)
+	assert.EqualValues(t, 2, v)
+	arr, err = cache.ZMembersByScore(rds.ScoreASC, 0, 100, 0, 0).Result()
+	assert.NoError(t, err)
+	assert.Equal(t, []string{"c", "d"}, arr)
 
 	cache.Del()
+}
+
+func TestXxx(t *testing.T) {
+	cache := rds.NewSortedSet[string](ctx, "key_sorted_set")
+	defer cache.Del()
+	// 插入/修改数据 （若仅新增/仅修改/需要查看新增数或修改数，参考说或 test/sorted_set_test.go）
+	cache.ZAdd(map[string]float64{
+		"a": 1.1,
+		"b": 2.2,
+		"c": 2.2,
+		"d": 4.4,
+	})
+	// 获取 c 的分值
+	v1, err := cache.ZScore("c").Result()
+	fmt.Println(v1, err)
+	// 增加 c 的分值
+	v2, err := cache.ZIncrBy("c", 1).Result()
+	fmt.Println(v2, err)
+	// 获取 c 的分值
+	v3, err := cache.ZScore("c").Result()
+	fmt.Println(v3, err)
+	// 获取 c 的排名 (分值从高到低)
+	v4, err := cache.ZRank(rds.ScoreDESC, "c").Result()
+	fmt.Println(v4, err)
+	// 获取 c 的排名 (分值从低到高)
+	v5, err := cache.ZRank(rds.ScoreASC, "c").Result()
+	fmt.Println(v5, err)
+	// 查询前两名 （分值从高到低）
+	v6, err := cache.ZRangeByRank(rds.ScoreDESC, 0, 1).Result()
+	fmt.Println(v6, err)
+	// 查询分值在 2.2-3.3 的成员 （分值从高到低）
+	v7, err := cache.ZRangeByScore(rds.ScoreDESC, 2.2, 3.3, 0, 0).Result()
+	fmt.Println(v7, err)
+	// 查询分值区间内有多少人
+	v8, err := cache.ZCountByScore(2.2, 3.3).Result()
+	fmt.Println(v8, err)
+	// 移除 a
+	cache.ZRem("a")
+	// 移除分值最低的两个
+	cache.ZRemByRank(rds.ScoreASC, 0, 1)
+	// 移除分值在 2.2 - 3.3 的所有成员
+	cache.ZRemByScore(2.2, 3.3)
 }

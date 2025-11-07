@@ -10,6 +10,7 @@ import (
 var (
 	_ convert[int64]   = toInt64
 	_ convert[float64] = toFloat64
+	_ convert[bool]    = toBool
 	_ convert[[]int]   = toE[[]int]
 )
 

@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 		fmt.Println(err)
 		return
 	}
-	defer rds.DB().(*redis.Client).Close()
+	defer rds.GetDB().(*redis.Client).Close()
 
 	// 打印参数和返回值
 	rds.SetDebug(true, os.Stdout)

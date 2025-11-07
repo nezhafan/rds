@@ -61,7 +61,7 @@ func Version() string {
 }
 
 func initInfo() {
-	info := DB().Info(context.Background(), "Server").Val()
+	info := GetDB().Info(context.Background(), "Server").Val()
 	for _, line := range strings.Split(info, "\r\n") {
 		if strings.HasPrefix(line, "redis_version:") {
 			versionCurrent = strings.TrimPrefix(line, "redis_version:")

@@ -30,7 +30,7 @@ func (b *base) db() Cmdable {
 	if b.pipe != nil {
 		return b.pipe
 	}
-	return DB()
+	return GetDB()
 }
 
 func (b *base) Expire(exp time.Duration) BoolCmd {

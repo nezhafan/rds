@@ -47,7 +47,7 @@ end
 
 // 尝试加锁
 func (m *Mutex) TryLock() bool {
-	cmd := DB().Eval(m.ctx, lockScript, []string{m.key}, m.id, defaultExpireSecond)
+	cmd := GetDB().Eval(m.ctx, lockScript, []string{m.key}, m.id, defaultExpireSecond)
 	resp, err := cmd.Result()
 	ok := err == nil && resp.(string) == "OK"
 	if isDebugMode {
@@ -93,7 +93,7 @@ end
 
 // 解锁，不会误解其它实例的锁
 func (m *Mutex) Unlock() {
-	DB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
+	GetDB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
 	if isDebugMode {
 		debugWriter.WriteString(m.key + " " + m.id + " 解锁\n")
 	}

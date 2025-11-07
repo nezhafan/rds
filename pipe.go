@@ -14,7 +14,7 @@ type Pipe struct {
 
 // 管道，内部命令统一发送，不保证这组命令的中间有插队。内部使用 NewPipeXXX
 func Pipeline(ctx context.Context, fn func(*Pipe)) error {
-	p := DB().Pipeline()
+	p := GetDB().Pipeline()
 	fn(&Pipe{ctx: ctx, pipe: p})
 	_, err := p.Exec(ctx)
 	return err
@@ -22,7 +22,7 @@ func Pipeline(ctx context.Context, fn func(*Pipe)) error {
 
 // 事务管道，内部命令统一发送，保证这组命令执行无插队。内部使用 NewPipeXXX
 func TxPipeline(ctx context.Context, fn func(*Pipe)) error {
-	p := DB().TxPipeline()
+	p := GetDB().TxPipeline()
 	fn(&Pipe{ctx: ctx, pipe: p})
 	_, err := p.Exec(ctx)
 	return err
