@@ -11,7 +11,7 @@ type HashStruct[E any] struct {
 
 // 泛型请传入结构体而非结构体指针，例：NewHashStruct[User]
 func NewHashStruct[E any](ctx context.Context, key string) *HashStruct[E] {
-	return &HashStruct[E]{base: NewBase(ctx, key)}
+	return &HashStruct[E]{base: newBase(ctx, key)}
 }
 
 // 缓存对象，强制设定过期时间。 ⚠️ 注意字段必须定义 `redis:"xx"` 标签才会存储，无redis标签会报错

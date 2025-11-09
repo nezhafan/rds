@@ -30,7 +30,7 @@ type Mutex struct {
 */
 func NewMutex(ctx context.Context, key string) *Mutex {
 	return &Mutex{
-		base: NewBase(ctx, key),
+		base: newBase(ctx, key),
 		id:   strconv.Itoa(int(rd.Int31())),
 	}
 }

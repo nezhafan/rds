@@ -10,7 +10,7 @@ type String struct {
 }
 
 func NewString(ctx context.Context, key string) *String {
-	return &String{base: NewBase(ctx, key)}
+	return &String{base: newBase(ctx, key)}
 }
 
 func (s *String) Set(val string, exp time.Duration) BoolCmd {

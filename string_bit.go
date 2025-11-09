@@ -13,7 +13,7 @@ type Bit struct {
 // 占用内存取决于设置的最大值，1000万占用1.2MB，math.MaxUint32最大占用512M内存
 // https://redis.io/docs/latest/commands/setbit/
 func NewBit(ctx context.Context, key string) *Bit {
-	return &Bit{base: NewBase(ctx, key)}
+	return &Bit{base: newBase(ctx, key)}
 }
 
 // 设置位，返回设置之前该位的状态

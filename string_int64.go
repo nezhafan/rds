@@ -10,7 +10,7 @@ type Int64 struct {
 }
 
 func NewInt64(ctx context.Context, key string) *Int64 {
-	return &Int64{base: NewBase(ctx, key)}
+	return &Int64{base: newBase(ctx, key)}
 }
 
 func (s *Int64) Set(val int64, exp time.Duration) BoolCmd {

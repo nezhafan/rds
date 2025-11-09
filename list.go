@@ -9,7 +9,7 @@ type List[E any] struct {
 }
 
 func NewList[E any](ctx context.Context, key string) *List[E] {
-	return &List[E]{base: NewBase(ctx, key)}
+	return &List[E]{base: newBase(ctx, key)}
 }
 
 // 左入。 返回list新长度

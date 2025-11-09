@@ -10,7 +10,7 @@ type Bool struct {
 }
 
 func NewBool(ctx context.Context, key string) *Bool {
-	return &Bool{base: NewBase(ctx, key)}
+	return &Bool{base: newBase(ctx, key)}
 }
 
 func (s *Bool) Set(val bool, exp time.Duration) BoolCmd {

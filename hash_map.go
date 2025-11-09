@@ -13,7 +13,7 @@ type HashMap[E cmp.Ordered] struct {
 
 // 需要自己管理key的过期时间
 func NewHashMap[E cmp.Ordered](ctx context.Context, key string) *HashMap[E] {
-	h := &HashMap[E]{base: NewBase(ctx, key)}
+	h := &HashMap[E]{base: newBase(ctx, key)}
 	return h
 }
 

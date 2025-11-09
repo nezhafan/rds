@@ -10,7 +10,7 @@ type JSON[E any] struct {
 }
 
 func NewJSON[E any](ctx context.Context, key string) *JSON[E] {
-	return &JSON[E]{base: NewBase(ctx, key)}
+	return &JSON[E]{base: newBase(ctx, key)}
 }
 
 func (s *JSON[E]) Set(val *E, exp time.Duration) BoolCmd {

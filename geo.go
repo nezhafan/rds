@@ -12,7 +12,7 @@ type Geo struct {
 
 // 坐标。底层使用 zset 存储
 func NewGeo(ctx context.Context, key string) *Geo {
-	return &Geo{base: NewBase(ctx, key)}
+	return &Geo{base: newBase(ctx, key)}
 }
 
 /*

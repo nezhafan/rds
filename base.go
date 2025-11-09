@@ -13,7 +13,7 @@ type base struct {
 	pipe redis.Pipeliner
 }
 
-func NewBase(ctx context.Context, key string) (b base) {
+func newBase(ctx context.Context, key string) (b base) {
 	if ctx == nil {
 		ctx = context.Background()
 	}

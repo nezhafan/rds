@@ -10,7 +10,7 @@ type Float64 struct {
 }
 
 func NewFloat64(ctx context.Context, key string) *Float64 {
-	return &Float64{base: NewBase(ctx, key)}
+	return &Float64{base: newBase(ctx, key)}
 }
 
 func (s *Float64) Set(val float64, exp time.Duration) BoolCmd {

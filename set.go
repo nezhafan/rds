@@ -12,7 +12,7 @@ type Set[E any] struct {
 
 // Set 去重
 func NewSet[E any](ctx context.Context, key string) *Set[E] {
-	return &Set[E]{base: NewBase(ctx, key)}
+	return &Set[E]{base: newBase(ctx, key)}
 }
 
 // 添加成员。 返回添加成功数

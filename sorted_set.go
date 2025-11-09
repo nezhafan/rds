@@ -29,7 +29,7 @@ const (
   - score相同时，会按member字典排序，而不是按先后添加顺序
 */
 func NewSortedSet[E cmp.Ordered](ctx context.Context, key string) *SortedSet[E] {
-	return &SortedSet[E]{base: NewBase(ctx, key)}
+	return &SortedSet[E]{base: newBase(ctx, key)}
 }
 
 /*
