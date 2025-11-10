@@ -13,7 +13,7 @@
   - `SetPrefix`，为所有key加上前缀。
   - `SetErrorHook` 捕捉 `error` 后进行自定义处理日志。
   - `Pipeline` 管道、`TxPipeline` 事务管道。将各类型串联起来。
-
+- 有用的话，欢迎 star。
 
 ### 二、类型和用法
 > 也可参考 test 测试用例
