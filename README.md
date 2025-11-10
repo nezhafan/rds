@@ -60,7 +60,7 @@
   - 示例代码
     ```go
     // 若只是为了防止某一时刻的并发，简单setnx互斥，不需要复杂的Mutex
-    cache := rds.NewBool[map[string]any](ctx, "key_bool")
+    cache := rds.NewBool(ctx, "key_bool")
     if cache.SetNX(true, time.Second * 2).Val() {
       // do
     }
@@ -102,16 +102,15 @@
   - 包含 `SetBit`、`GetBit`、`BitCount`、`BitPos` 方法。
   - 示例代码
     ```go
-    // 例如存储用户某日登录情况
-    cache := rds.NewBit(ctx, "key_bit:2025-01-01")
+    cache := rds.NewBit(ctx, "key_bit")
     defer cache.Del()
-    // 登录时
+    // 举例某个用户的任务达成
     cache.SetBit(uid, 1)
-    // 判断某用户是否登录
+    // 判断某用户任务是否达成
     if cache.GetBit(uid).Val() == 1 {
 
     }
-    // 查看当日登录了多少人
+    // 统计达成人数
     cache.BitCount().Val()
     ```
 
