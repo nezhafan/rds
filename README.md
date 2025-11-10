@@ -8,8 +8,7 @@
 - 一些方法。
   - `Connect` 、`ConnectByOption` 连接
   - `SetDB` 使用自定义连接，`GetDB` 获取连接。
-  - `SetDB` 如果已有更灵活的连接方式，可以连接直接拿过来。
-  - `SetDebug` 把命令和结果打印出来，方便本地调试。
+  - `SetDebug` 把命令和结果打印出来，方便本地调试，线上不建议开启。
   - `SetPrefix`，为所有key加上前缀。
   - `SetErrorHook` 捕捉 `error` 后进行自定义处理日志。
   - `Pipeline` 管道、`TxPipeline` 事务管道。将各类型串联起来。
