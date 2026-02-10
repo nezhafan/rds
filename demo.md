@@ -15,16 +15,6 @@
     exists, v, err := cache.Get().R()
     fmt.Println(exists, v, err)
     ```
-- `Bool` 存储布尔值（实际存1和0）。
-  - 包含 `Set`、`SetNX`、`Get` 方法。
-  - 示例代码
-    ```go
-    // 若只是为了防止某一时刻的并发，简单setnx互斥，不需要复杂的Mutex
-    cache := rds.NewBool(ctx, "key_bool")
-    if cache.SetNX(true, time.Second * 2).Val() {
-      // do
-    }
-    ```
 - `JSON[any]` 使用json形式存储 `map`、`slice`、`struct`等。 
   - 包含 `Set`、`SetNX`、`Get` 方法。
   - 示例代码

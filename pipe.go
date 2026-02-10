@@ -46,12 +46,6 @@ func NewPipeFloat64(p *Pipe, key string) *Float64 {
 	return s
 }
 
-func NewPipeBool(p *Pipe, key string) *Bool {
-	s := NewBool(p.ctx, key)
-	s.pipe = p.pipe
-	return s
-}
-
 func NewPipeJSON[E any](p *Pipe, key string) *JSON[E] {
 	s := NewJSON[E](p.ctx, key)
 	s.pipe = p.pipe

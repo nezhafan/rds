@@ -25,8 +25,8 @@ func (h *HashStruct[E]) HSet(obj *E, exp time.Duration) BoolCmd {
 	}
 	// 使用管道同时设置过期时间
 	pipe := h.db().Pipeline()
-	cmd1 := pipe.HSet(h.ctx, h.key, values)
-	cmd2 := pipe.Expire(h.ctx, h.key, exp)
+	cmd1 := pipe.HSet(h.ctx, h.Key(), values)
+	cmd2 := pipe.Expire(h.ctx, h.Key(), exp)
 	_, err := pipe.Exec(h.ctx)
 	cmd1.SetErr(err)
 	h.done(cmd1)
@@ -35,7 +35,7 @@ func (h *HashStruct[E]) HSet(obj *E, exp time.Duration) BoolCmd {
 }
 
 func (h *HashStruct[E]) HGet(field string) StringCmdR {
-	cmd := h.db().HGet(h.ctx, h.key, field)
+	cmd := h.db().HGet(h.ctx, h.Key(), field)
 	h.done(cmd)
 	return newStringCmdR(cmd)
 }
@@ -44,13 +44,13 @@ func (h *HashStruct[E]) HMGet(fields ...string) StructCmd[E] {
 	if len(fields) == 0 {
 		return h.HGetAll()
 	}
-	cmd := h.db().HMGet(h.ctx, h.key, fields...)
+	cmd := h.db().HMGet(h.ctx, h.Key(), fields...)
 	h.done(cmd)
 	return newStructCmd[E](cmd, fields)
 }
 
 func (h *HashStruct[E]) HGetAll() StructCmd[E] {
-	cmd := h.db().HGetAll(h.ctx, h.key)
+	cmd := h.db().HGetAll(h.ctx, h.Key())
 	h.done(cmd)
 	return newStructCmd[E](cmd, nil)
 }

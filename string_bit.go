@@ -21,21 +21,21 @@ func (b *Bit) SetBit(offset uint32, val uint8) BoolCmd {
 	if val != 0 {
 		val = 1
 	}
-	cmd := b.db().SetBit(b.ctx, b.key, int64(offset), int(val))
+	cmd := b.db().SetBit(b.ctx, b.Key(), int64(offset), int(val))
 	b.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 // 获取位状态
 func (b *Bit) GetBit(offset uint32) Int64Cmd {
-	cmd := b.db().GetBit(b.ctx, b.key, int64(offset))
+	cmd := b.db().GetBit(b.ctx, b.Key(), int64(offset))
 	b.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 // 获取范围内1的个数
 func (b *Bit) BitCount(start, end int64) Int64Cmd {
-	args := []any{"bitcount", b.key, start, end, "bit"}
+	args := []any{"bitcount", b.Key(), start, end, "bit"}
 	cmd := b.db().Do(b.ctx, args...)
 	b.done(cmd)
 	return newInt64Cmd(cmd)
@@ -46,7 +46,7 @@ func (b *Bit) BitPos(search uint8, start, end int64) Int64Cmd {
 	if search != 0 {
 		search = 1
 	}
-	args := []any{"BITPOS", b.key, search, start, end, "BIT"}
+	args := []any{"BITPOS", b.Key(), search, start, end, "BIT"}
 	cmd := b.db().Do(b.ctx, args...)
 	b.done(cmd)
 	return newInt64Cmd(cmd)

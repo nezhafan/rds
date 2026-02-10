@@ -2,6 +2,7 @@ package rds
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -18,12 +19,15 @@ func newBase(ctx context.Context, key string) (b base) {
 		ctx = context.Background()
 	}
 	b.ctx = ctx
-	b.key = keyPrefix + key
+	b.key = key
 	return
 }
 
 func (b *base) Key() string {
-	return b.key
+	if keyPrefix == "" {
+		return b.key
+	}
+	return keyPrefix + b.key
 }
 
 func (b *base) db() Cmdable {
@@ -36,42 +40,69 @@ func (b *base) db() Cmdable {
 func (b *base) Expire(exp time.Duration) BoolCmd {
 	var cmd *redis.BoolCmd
 	if exp == KeepTTL {
-		cmd = b.db().Persist(b.ctx, b.key)
+		cmd = b.db().Persist(b.ctx, b.Key())
 	} else {
-		cmd = b.db().Expire(b.ctx, b.key, exp)
+		cmd = b.db().Expire(b.ctx, b.Key(), exp)
 	}
 	b.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (b *base) ExpireAt(expAt time.Time) BoolCmd {
-	cmd := b.db().ExpireAt(b.ctx, b.key, expAt)
+	cmd := b.db().ExpireAt(b.ctx, b.Key(), expAt)
 	b.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (b *base) Exists() BoolCmd {
-	cmd := b.db().Exists(b.ctx, b.key)
+	cmd := b.db().Exists(b.ctx, b.Key())
 	b.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (b *base) Del() BoolCmd {
-	cmd := b.db().Del(b.ctx, b.key)
+	cmd := b.db().Del(b.ctx, b.Key())
 	b.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (b *base) TTL() DurationCmd {
-	cmd := b.db().TTL(b.ctx, b.key)
+	cmd := b.db().TTL(b.ctx, b.Key())
 	b.done(cmd)
 	return newDurationCmd(cmd)
+}
+
+var (
+	onceExpire sync.Map
+)
+
+// 设置一次过期时间
+func (b *base) OnceExpire(exp time.Duration) BoolCmd {
+	if _, ok := onceExpire.LoadOrStore(b.Key(), struct{}{}); ok {
+		return newBoolCmd(new(redis.BoolCmd))
+	}
+	cmd := b.Expire(exp)
+	if !cmd.Val() {
+		onceExpire.Delete(b.Key())
+	}
+	return cmd
+}
+
+func (b *base) OnceExpireAt(expAt time.Time) BoolCmd {
+	if _, ok := onceExpire.LoadOrStore(b.Key(), struct{}{}); ok {
+		return newBoolCmd(new(redis.BoolCmd))
+	}
+	cmd := b.ExpireAt(expAt)
+	if !cmd.Val() {
+		onceExpire.Delete(b.Key())
+	}
+	return cmd
 }
 
 func (b *base) done(cmd redis.Cmder) {
 	// 开发模式打印命令和结果()
 	if isDebugMode {
-		debugWriter.WriteString(cmd.String() + "\n")
+		_, _ = debugWriter.WriteString(cmd.String() + "\n")
 	}
 
 	// cmd 钩子

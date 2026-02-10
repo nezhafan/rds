@@ -25,7 +25,7 @@ zadd key [nx|xx] [ch] score member (可选参数仅6.2.0以上支持)
 */
 func (g *Geo) GeoAdd(locations map[string]GeoPos, params ...string) Int64Cmd {
 	args := make([]any, 0, len(locations)*3+4)
-	args = append(args, "geoadd", g.key)
+	args = append(args, "geoadd", g.Key())
 	if IsAboveVersion62 {
 		if len(params) > 0 {
 			args = append(args, params[0])
@@ -44,14 +44,14 @@ func (g *Geo) GeoAdd(locations map[string]GeoPos, params ...string) Int64Cmd {
 
 // 获取经纬度
 func (g *Geo) GeoPos(members ...string) GeoPosCmd {
-	cmd := g.db().GeoPos(g.ctx, g.key, members...)
+	cmd := g.db().GeoPos(g.ctx, g.Key(), members...)
 	g.done(cmd)
 	return newGeoPosCmd(cmd, members)
 }
 
 // 计算距离（米) 如果其中一个成员不存在则返回0
 func (g *Geo) GeoDist(member1, member2 string) Float64CmdR {
-	cmd := g.db().GeoDist(g.ctx, g.key, member1, member2, "m")
+	cmd := g.db().GeoDist(g.ctx, g.Key(), member1, member2, "m")
 	g.done(cmd)
 	return newFloat64CmdR(cmd)
 }
@@ -96,7 +96,7 @@ func (g *Geo) GeoSearchByCoord(longitude, latitude, radius float64, count int64,
 		WithDist:  withDist,  // 计算距离
 		WithHash:  withHash,
 	}
-	cmd := g.db().GeoSearchLocation(g.ctx, g.key, query)
+	cmd := g.db().GeoSearchLocation(g.ctx, g.Key(), query)
 	g.done(cmd)
 	return newGeoLocationCmd(cmd)
 }
@@ -123,14 +123,14 @@ func (g *Geo) GeoSearchByMember(member string, radius float64, count int64, q *G
 		WithDist:  withDist,  // 计算距离
 		WithHash:  withHash,
 	}
-	cmd := g.db().GeoSearchLocation(g.ctx, g.key, query)
+	cmd := g.db().GeoSearchLocation(g.ctx, g.Key(), query)
 	g.done(cmd)
 	return cmd
 }
 
 func (g *Geo) GeoDel(members ...string) Int64Cmd {
 	args := slice2Anys(members)
-	cmd := g.db().ZRem(g.ctx, g.key, args...)
+	cmd := g.db().ZRem(g.ctx, g.Key(), args...)
 	g.done(cmd)
 	return newInt64Cmd(cmd)
 }

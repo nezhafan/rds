@@ -21,21 +21,21 @@ func (s *Set[E]) SAdd(members ...E) Int64Cmd {
 		newInt64Cmd(new(redis.IntCmd))
 	}
 	args := slice2Anys(members)
-	cmd := s.db().SAdd(s.ctx, s.key, args...)
+	cmd := s.db().SAdd(s.ctx, s.Key(), args...)
 	s.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 // 是否为成员
 func (s *Set[E]) SIsMember(member E) BoolCmd {
-	cmd := s.db().SIsMember(s.ctx, s.key, member)
+	cmd := s.db().SIsMember(s.ctx, s.Key(), member)
 	s.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 // 所有成员
 func (s *Set[E]) SMembers() SliceCmd[E] {
-	cmd := s.db().SMembers(s.ctx, s.key)
+	cmd := s.db().SMembers(s.ctx, s.Key())
 	s.done(cmd)
 	return newSliceCmd[E](cmd)
 }
@@ -51,7 +51,7 @@ func (s *Set[E]) SScan(match string, count int64, fn func(vals []E) error) (err 
 	var vals []string
 	var result []E
 	for {
-		cmd := s.db().SScan(s.ctx, s.key, cursor, match, count)
+		cmd := s.db().SScan(s.ctx, s.Key(), cursor, match, count)
 		s.done(cmd)
 
 		vals, cursor, err = cmd.Result()
@@ -78,14 +78,14 @@ func (s *Set[E]) SScan(match string, count int64, fn func(vals []E) error) (err 
 
 // 成员数
 func (s *Set[E]) SCard() Int64Cmd {
-	cmd := s.db().SCard(s.ctx, s.key)
+	cmd := s.db().SCard(s.ctx, s.Key())
 	s.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 // 随机弹出count个成员（会删除）
 func (s *Set[E]) SPop(count int64) SliceCmd[E] {
-	cmd := s.db().SPopN(s.ctx, s.key, count)
+	cmd := s.db().SPopN(s.ctx, s.Key(), count)
 	s.done(cmd)
 	return newSliceCmd[E](cmd)
 }
@@ -93,7 +93,7 @@ func (s *Set[E]) SPop(count int64) SliceCmd[E] {
 // 移除成员。 返回移除成功数
 func (s *Set[E]) SRem(members ...E) Int64Cmd {
 	args := slice2Anys(members)
-	cmd := s.db().SRem(s.ctx, s.key, args...)
+	cmd := s.db().SRem(s.ctx, s.Key(), args...)
 	s.done(cmd)
 	return newInt64Cmd(cmd)
 }

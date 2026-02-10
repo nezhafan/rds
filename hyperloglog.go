@@ -14,14 +14,14 @@ func NewHyperLogLog(ctx context.Context, key string) *HyperLogLog {
 
 // 添加，至少有一个添加成功返回true，否则返回false
 func (h *HyperLogLog) PFAdd(vals ...any) BoolCmd {
-	cmd := h.db().PFAdd(h.ctx, h.key, vals...)
+	cmd := h.db().PFAdd(h.ctx, h.Key(), vals...)
 	h.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 // 统计数量，是存在0.81%误差的
 func (h *HyperLogLog) PFCount() Int64Cmd {
-	cmd := h.db().PFCount(h.ctx, h.key)
+	cmd := h.db().PFCount(h.ctx, h.Key())
 	h.done(cmd)
 	return newInt64Cmd(cmd)
 }
@@ -30,9 +30,9 @@ func (h *HyperLogLog) PFCount() Int64Cmd {
 func (h *HyperLogLog) PFMerge(Hyperloglogs ...HyperLogLog) BoolCmd {
 	keys := make([]string, len(Hyperloglogs))
 	for i, hl := range Hyperloglogs {
-		keys[i] = hl.key
+		keys[i] = hl.Key()
 	}
-	cmd := h.db().PFMerge(h.ctx, h.key, keys...)
+	cmd := h.db().PFMerge(h.ctx, h.Key(), keys...)
 	h.done(cmd)
 	return newBoolCmd(cmd)
 }

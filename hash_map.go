@@ -27,19 +27,19 @@ func (h *HashMap[E]) HSet(kv map[string]E) Int64Cmd {
 	for k, v := range kv {
 		values = append(values, k, v)
 	}
-	cmd := h.db().HSet(h.ctx, h.key, values...)
+	cmd := h.db().HSet(h.ctx, h.Key(), values...)
 	h.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 func (h *HashMap[E]) HSetNX(field string, value E) BoolCmd {
-	cmd := h.db().HSetNX(h.ctx, h.key, field, value)
+	cmd := h.db().HSetNX(h.ctx, h.Key(), field, value)
 	h.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (h *HashMap[E]) HGet(field string) AnyCmd[E] {
-	cmd := h.db().HGet(h.ctx, h.key, field)
+	cmd := h.db().HGet(h.ctx, h.Key(), field)
 	h.done(cmd)
 	return newAnyCmd[E](cmd)
 }
@@ -48,47 +48,47 @@ func (h *HashMap[E]) HMGet(fields ...string) MapCmd[E] {
 	if len(fields) == 0 {
 		return h.HGetAll()
 	}
-	cmd := h.db().HMGet(h.ctx, h.key, fields...)
+	cmd := h.db().HMGet(h.ctx, h.Key(), fields...)
 	h.done(cmd)
 	return newMapCmd[E](cmd, fields)
 }
 
 func (h *HashMap[E]) HGetAll() MapCmd[E] {
-	cmd := h.db().HGetAll(h.ctx, h.key)
+	cmd := h.db().HGetAll(h.ctx, h.Key())
 	h.done(cmd)
 	return newMapCmd[E](cmd, nil)
 }
 
 // 注意 hincrby 去增长一个浮点数字段会报错
 func (h *HashMap[E]) HIncrBy(field string, incr int64) Int64Cmd {
-	cmd := h.db().HIncrBy(h.ctx, h.key, field, incr)
+	cmd := h.db().HIncrBy(h.ctx, h.Key(), field, incr)
 	h.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 // 注意 hincrbyfloat 可能出现精度问题
 func (h *HashMap[E]) HIncrByFloat(field string, incr float64) Float64Cmd {
-	cmd := h.db().HIncrByFloat(h.ctx, h.key, field, incr)
+	cmd := h.db().HIncrByFloat(h.ctx, h.Key(), field, incr)
 	h.done(cmd)
 	return newFloat64Cmd(cmd)
 }
 
 // 返回删除成功数
 func (h *HashMap[E]) HDel(fields ...string) Int64Cmd {
-	cmd := h.db().HDel(h.ctx, h.key, fields...)
+	cmd := h.db().HDel(h.ctx, h.Key(), fields...)
 	h.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 // 返回field数量
 func (h *HashMap[E]) HLen() Int64Cmd {
-	cmd := h.db().HLen(h.ctx, h.key)
+	cmd := h.db().HLen(h.ctx, h.Key())
 	h.done(cmd)
 	return newInt64Cmd(cmd)
 }
 
 func (h *HashMap[E]) HExists(field string) BoolCmd {
-	cmd := h.db().HExists(h.ctx, h.key, field)
+	cmd := h.db().HExists(h.ctx, h.Key(), field)
 	h.done(cmd)
 	return newBoolCmd(cmd)
 }

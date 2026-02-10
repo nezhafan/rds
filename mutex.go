@@ -18,21 +18,31 @@ var (
 
 type Mutex struct {
 	base
-	id string
+	id        string
+	expSecond int
 }
 
 /*
 分布式锁
 - 可重入锁：不同用户请求应该每次都New而不是使用同一个Mutex实例
-- 重试机制：使用斐波那契数列 5ms,5ms,10ms,20ms...260ms + 随机0到自身随机值 的间隔一直重试，直到拿到锁或上下文时间耗尽
-- ctx 不要传context.Background()，需要传一个带超时的context
-- 单锁的最大过期时间为60秒，不主动续约，需要自己估计业务时常是否会超过这个值，自己去开定时器利用可重入特性再次Lock
+- 重试机制：使用斐波那契数列 5ms,5ms,10ms,20ms...210ms + 随机0到自身随机值 的间隔一直重试，直到拿到锁或上下文时间耗尽
+- 锁默认过期时间为60秒，不主动续约，需要自己估计业务时常是否会超过这个值，自己去开定时器利用可重入特性再次Lock
 */
 func NewMutex(ctx context.Context, key string) *Mutex {
 	return &Mutex{
-		base: newBase(ctx, key),
-		id:   strconv.Itoa(int(rd.Int31())),
+		base:      newBase(ctx, key),
+		id:        strconv.Itoa(int(rd.Int31())),
+		expSecond: defaultExpireSecond,
 	}
+}
+
+func (m *Mutex) WithExpire(exp time.Duration) *Mutex {
+	expSecond := int(exp.Seconds())
+	if expSecond <= 0 {
+		expSecond = defaultExpireSecond
+	}
+	m.expSecond = expSecond
+	return m
 }
 
 // 先判断是否为当前线程重复获取锁，如果是则返回OK。 (可重入锁)
@@ -47,14 +57,14 @@ end
 
 // 尝试加锁
 func (m *Mutex) TryLock() bool {
-	cmd := GetDB().Eval(m.ctx, lockScript, []string{m.key}, m.id, defaultExpireSecond)
+	cmd := GetDB().Eval(m.ctx, lockScript, []string{m.Key()}, m.id, m.expSecond)
 	resp, err := cmd.Result()
 	ok := err == nil && resp.(string) == "OK"
 	if isDebugMode {
 		if ok {
-			debugWriter.WriteString(m.key + " " + m.id + " 加锁成功\n")
+			_, _ = debugWriter.WriteString(m.Key() + " " + m.id + " 加锁成功\n")
 		} else {
-			debugWriter.WriteString(m.key + " " + m.id + " 加锁失败\n")
+			_, _ = debugWriter.WriteString(m.Key() + " " + m.id + " 加锁失败\n")
 		}
 	}
 	return ok
@@ -74,7 +84,7 @@ func (m *Mutex) Lock() bool {
 			milli := retryIntervals[min(retry, len(retryIntervals)-1)]
 			milli += rd.Intn(milli) // 加上0到自身的随机值
 			if isDebugMode {
-				debugWriter.WriteString(m.key + " " + m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
+				debugWriter.WriteString(m.Key() + " " + m.id + " " + strconv.Itoa(milli) + "毫秒后重试 \n")
 			}
 			time.Sleep(time.Duration(milli) * time.Millisecond)
 			retry++
@@ -93,8 +103,8 @@ end
 
 // 解锁，不会误解其它实例的锁
 func (m *Mutex) Unlock() {
-	GetDB().Eval(m.ctx, unLockScript, []string{m.key}, m.id)
+	GetDB().Eval(m.ctx, unLockScript, []string{m.Key()}, m.id)
 	if isDebugMode {
-		debugWriter.WriteString(m.key + " " + m.id + " 解锁\n")
+		debugWriter.WriteString(m.Key() + " " + m.id + " 解锁\n")
 	}
 }

@@ -14,26 +14,26 @@ func NewFloat64(ctx context.Context, key string) *Float64 {
 }
 
 func (s *Float64) Set(val float64, exp time.Duration) BoolCmd {
-	cmd := s.db().Set(s.ctx, s.key, val, exp)
+	cmd := s.db().Set(s.ctx, s.Key(), val, exp)
 	s.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (s *Float64) SetNX(val float64, exp time.Duration) BoolCmd {
-	cmd := s.db().SetNX(s.ctx, s.key, val, exp)
+	cmd := s.db().SetNX(s.ctx, s.Key(), val, exp)
 	s.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (s *Float64) Get() Float64CmdR {
-	cmd := s.db().Get(s.ctx, s.key)
+	cmd := s.db().Get(s.ctx, s.Key())
 	s.done(cmd)
 	return newFloat64CmdR(cmd)
 }
 
 // 建议：判断 返回值 == 增长值 时，设置一下过期时间
 func (s *Float64) IncrByFloat(increment float64) Float64Cmd {
-	cmd := s.db().IncrByFloat(s.ctx, s.key, increment)
+	cmd := s.db().IncrByFloat(s.ctx, s.Key(), increment)
 	s.done(cmd)
 	return newFloat64Cmd(cmd)
 }

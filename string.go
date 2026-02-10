@@ -14,19 +14,19 @@ func NewString(ctx context.Context, key string) *String {
 }
 
 func (s *String) Set(val string, exp time.Duration) BoolCmd {
-	cmd := s.db().Set(s.ctx, s.key, val, exp)
+	cmd := s.db().Set(s.ctx, s.Key(), val, exp)
 	s.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (s *String) SetNX(val string, exp time.Duration) BoolCmd {
-	cmd := s.db().SetNX(s.ctx, s.key, val, exp)
+	cmd := s.db().SetNX(s.ctx, s.Key(), val, exp)
 	s.done(cmd)
 	return newBoolCmd(cmd)
 }
 
 func (s *String) Get() StringCmdR {
-	cmd := s.db().Get(s.ctx, s.key)
+	cmd := s.db().Get(s.ctx, s.Key())
 	s.done(cmd)
 	return newStringCmdR(cmd)
 }

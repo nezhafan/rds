@@ -1,6 +1,7 @@
 package test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -109,4 +110,46 @@ func TestExpireAt(t *testing.T) {
 	assert.InDelta(t, n, time.Hour, float64(time.Second))
 
 	cache.Del()
+}
+
+func TestOnceExpire(t *testing.T) {
+	cache := rds.NewHashMap[int](ctx, "base_once_expire")
+	cache.HSet(map[string]int{"a": 1})
+	defer cache.Del()
+
+	wg := new(sync.WaitGroup)
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cache.OnceExpire(time.Minute)
+		}()
+	}
+	wg.Wait()
+
+	v, err := cache.TTL().Result()
+	assert.NoError(t, err)
+	assert.InDelta(t, v, time.Minute, float64(time.Second))
+
+}
+
+func TestOnceExpireAt(t *testing.T) {
+	cache := rds.NewHashMap[int](ctx, "base_once_expireat")
+	cache.HSet(map[string]int{"a": 1})
+	defer cache.Del()
+	expAt := time.Now().Add(time.Minute)
+
+	wg := new(sync.WaitGroup)
+	for i := 0; i < 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			cache.OnceExpireAt(expAt)
+		}()
+	}
+	wg.Wait()
+
+	v, err := cache.TTL().Result()
+	assert.NoError(t, err)
+	assert.InDelta(t, v, time.Minute, float64(time.Second))
 }
