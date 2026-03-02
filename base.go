@@ -23,11 +23,6 @@ func newBase(ctx context.Context, key string) (b base) {
 	return
 }
 
-func (b *base) SetPipe(p redis.Pipeliner) *base {
-	b.pipe = p
-	return b
-}
-
 func (b *base) Key() string {
 	if keyPrefix == "" {
 		return b.key

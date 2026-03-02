@@ -21,6 +21,8 @@ const (
 )
 
 var (
+	// 默认上下文
+	ctx = context.Background()
 	// 命令和结果打印
 	cmdHook func(cmd redis.Cmder)
 	// 错误打印
