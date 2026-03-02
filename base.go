@@ -23,6 +23,11 @@ func newBase(ctx context.Context, key string) (b base) {
 	return
 }
 
+func (b *base) SetPipe(p redis.Pipeliner) *base {
+	b.pipe = p
+	return b
+}
+
 func (b *base) Key() string {
 	if keyPrefix == "" {
 		return b.key
@@ -78,23 +83,23 @@ var (
 
 // 设置一次过期时间
 func (b *base) OnceExpire(exp time.Duration) BoolCmd {
-	if _, ok := onceExpire.LoadOrStore(b.Key(), struct{}{}); ok {
+	if _, ok := onceExpire.LoadOrStore(b.key, struct{}{}); ok {
 		return newBoolCmd(new(redis.BoolCmd))
 	}
 	cmd := b.Expire(exp)
 	if !cmd.Val() {
-		onceExpire.Delete(b.Key())
+		onceExpire.Delete(b.key)
 	}
 	return cmd
 }
 
 func (b *base) OnceExpireAt(expAt time.Time) BoolCmd {
-	if _, ok := onceExpire.LoadOrStore(b.Key(), struct{}{}); ok {
+	if _, ok := onceExpire.LoadOrStore(b.key, struct{}{}); ok {
 		return newBoolCmd(new(redis.BoolCmd))
 	}
 	cmd := b.ExpireAt(expAt)
 	if !cmd.Val() {
-		onceExpire.Delete(b.Key())
+		onceExpire.Delete(b.key)
 	}
 	return cmd
 }
